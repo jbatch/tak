@@ -13,28 +13,49 @@ export const GameBoard: React.FC<GameBoardProps> = ({
   gameState,
   setGameState,
 }) => {
+  const isStartingCell = (pos: Position): boolean => {
+    if (!gameState.movingStack) return false;
+    const startPos = gameState.movingStack.path[0];
+    return startPos.x === pos.x && startPos.y === pos.y;
+  };
+
   const handleStackSelect = (
     pos: Position | undefined,
     stackIndex: number | null
   ) => {
-    console.log("handleStackSelect", { pos, stackIndex });
-    // If pos is undefined, we're canceling the selection
+    console.log("handleStackSelect", {
+      pos,
+      movingStack: gameState.movingStack,
+      starting: pos && isStartingCell(pos),
+    });
+    // Cancel move by clicking starting cell
+    if (pos && gameState.movingStack && isStartingCell(pos)) {
+      console.log({ initial: gameState.movingStack.initialBoard });
+      setGameState({
+        ...gameState,
+        board: gameState.movingStack.initialBoard, // Restore initial state
+        selectedCell: null,
+        selectedStackIndex: null,
+        movingStack: null,
+      });
+      return;
+    }
+
+    // Regular stack selection
     if (!pos) {
       setGameState({
         ...gameState,
         selectedCell: null,
         selectedStackIndex: null,
+        movingStack: null,
       });
       return;
     }
 
-    // Only allow selection if it's the current player's piece on top
     const cell = gameState.board[pos.y][pos.x];
     const topPiece = cell.pieces[cell.pieces.length - 1];
-    console.log({ cell, topPiece, player: gameState.currentPlayer });
 
-    if (topPiece.color === gameState.currentPlayer) {
-      console.log("SET");
+    if (topPiece?.color === gameState.currentPlayer) {
       setGameState({
         ...gameState,
         selectedCell: pos,
@@ -44,39 +65,38 @@ export const GameBoard: React.FC<GameBoardProps> = ({
   };
 
   const isValidMove = (from: Position, to: Position): boolean => {
-    // If we're in the middle of a move, check from the current stack position
-    if (gameState.movingStack) {
-      const currentPos =
-        gameState.movingStack.path[gameState.movingStack.path.length - 1];
-      const dx = Math.abs(to.x - currentPos.x);
-      const dy = Math.abs(to.y - currentPos.y);
-
-      // Must continue in the same direction
-      const direction = gameState.movingStack.direction;
-      if (direction === "up" || direction === "down") {
-        return (
-          dx === 0 &&
-          dy === 1 &&
-          (direction === "up" ? to.y < currentPos.y : to.y > currentPos.y)
-        );
-      } else {
-        return (
-          dy === 0 &&
-          dx === 1 &&
-          (direction === "left" ? to.x < currentPos.x : to.x > currentPos.x)
-        );
-      }
+    if (!gameState.movingStack) {
+      if (!gameState.selectedCell) return false;
+      const dx = Math.abs(to.x - from.x);
+      const dy = Math.abs(to.y - from.y);
+      return (dx === 1 && dy === 0) || (dx === 0 && dy === 1);
     }
 
-    // Initial move validation (not in the middle of a move)
-    if (!gameState.selectedCell) return false;
+    const currentPos =
+      gameState.movingStack.path[gameState.movingStack.path.length - 1];
 
-    // Check if the move is to an adjacent square
-    const dx = Math.abs(to.x - from.x);
-    const dy = Math.abs(to.y - from.y);
+    // Allow dropping in current position
+    if (currentPos.x === to.x && currentPos.y === to.y) {
+      return true;
+    }
 
-    // Only allow moving to directly adjacent squares (not diagonally)
-    return (dx === 1 && dy === 0) || (dx === 0 && dy === 1);
+    const dx = Math.abs(to.x - currentPos.x);
+    const dy = Math.abs(to.y - currentPos.y);
+    const direction = gameState.movingStack.direction;
+
+    if (direction === "up" || direction === "down") {
+      return (
+        dx === 0 &&
+        dy === 1 &&
+        (direction === "up" ? to.y < currentPos.y : to.y > currentPos.y)
+      );
+    } else {
+      return (
+        dy === 0 &&
+        dx === 1 &&
+        (direction === "left" ? to.x < currentPos.x : to.x > currentPos.x)
+      );
+    }
   };
 
   const handlePieceDrop = (x: number, y: number, stone: Stone) => {
@@ -84,17 +104,11 @@ export const GameBoard: React.FC<GameBoardProps> = ({
     newState.board[y][x].pieces.push(stone);
 
     if (stone.color === "white") {
-      if (stone.isCapstone) {
-        newState.whiteCapstones--;
-      } else {
-        newState.whiteStones--;
-      }
+      if (stone.isCapstone) newState.whiteCapstones--;
+      else newState.whiteStones--;
     } else {
-      if (stone.isCapstone) {
-        newState.blackCapstones--;
-      } else {
-        newState.blackStones--;
-      }
+      if (stone.isCapstone) newState.blackCapstones--;
+      else newState.blackStones--;
     }
 
     setGameState(newState);
@@ -119,42 +133,32 @@ export const GameBoard: React.FC<GameBoardProps> = ({
     if (!gameState.selectedCell || gameState.selectedStackIndex === null)
       return;
 
+    const newBoard = gameState.board.map((row) =>
+      row.map((cell) => ({ ...cell, pieces: [...cell.pieces] }))
+    );
+
     // If this is the start of a move
     if (!gameState.movingStack) {
       const direction = getValidMoveDirection(gameState.selectedCell, to);
       if (!direction) return;
 
-      // Create a new board to avoid direct mutations
-      const newBoard = [
-        ...gameState.board.map((row) => [
-          ...row.map((cell) => ({ ...cell, pieces: [...cell.pieces] })),
-        ]),
-      ];
-
-      // Get references to the cells in our new board
       const fromCell =
         newBoard[gameState.selectedCell.y][gameState.selectedCell.x];
       const toCell = newBoard[to.y][to.x];
-
-      // Get the pieces we're moving
       const movingPieces = fromCell.pieces.slice(gameState.selectedStackIndex);
-
-      // Remove the pieces from the source cell
       fromCell.pieces = fromCell.pieces.slice(0, gameState.selectedStackIndex);
 
-      // Drop one piece in the first cell
+      // Handle first piece placement
       const droppedPiece = movingPieces.pop()!;
-
-      // Handle standing stones
       if (toCell.pieces.length > 0) {
         const topPiece = toCell.pieces[toCell.pieces.length - 1];
-        if (topPiece.isStanding || topPiece.isCapstone) {
-          if (!droppedPiece.isCapstone) return; // Can't move here
-          topPiece.isStanding = false;
-        }
+        if (
+          (topPiece.isStanding || topPiece.isCapstone) &&
+          !droppedPiece.isCapstone
+        )
+          return;
+        if (topPiece.isStanding) topPiece.isStanding = false;
       }
-
-      // Add the first piece to the target cell
       toCell.pieces.push(droppedPiece);
 
       setGameState({
@@ -165,35 +169,69 @@ export const GameBoard: React.FC<GameBoardProps> = ({
           direction,
           path: [gameState.selectedCell, to],
           heldPieces: movingPieces,
+          initialBoard: gameState.board,
         },
       });
       return;
     }
 
     // Continuing an existing move
-    const { direction, path, heldPieces } = gameState.movingStack;
+    const { path, heldPieces } = gameState.movingStack;
     const lastPos = path[path.length - 1];
+    const currentCell = newBoard[to.y][to.x];
 
-    // Validate move direction
-    const newDirection = getValidMoveDirection(lastPos, to);
-    if (newDirection !== direction) return;
+    // Handle dropping on current position
+    if (to.x === lastPos.x && to.y === lastPos.y) {
+      if (heldPieces.length === 0) return;
 
-    // Create a new board for this move
-    const newBoard = [
-      ...gameState.board.map((row) => [
-        ...row.map((cell) => ({ ...cell, pieces: [...cell.pieces] })),
-      ]),
-    ];
+      const droppedPiece = heldPieces[heldPieces.length - 1];
+      currentCell.pieces.push(droppedPiece);
+      const newHeldPieces = heldPieces.slice(0, -1);
 
-    // Drop at least one piece
+      if (newHeldPieces.length === 0) {
+        setGameState({
+          ...gameState,
+          board: newBoard,
+          movingStack: null,
+          selectedCell: null,
+          selectedStackIndex: null,
+          currentPlayer:
+            gameState.currentPlayer === "white" ? "black" : "white",
+        });
+        return;
+      }
+
+      setGameState({
+        ...gameState,
+        board: newBoard,
+        movingStack: {
+          ...gameState.movingStack,
+          heldPieces: newHeldPieces,
+        },
+      });
+      return;
+    }
+
+    // Handle moving to a new position
+    const direction = getValidMoveDirection(lastPos, to);
+    if (direction !== gameState.movingStack.direction) return;
+
     const droppedPiece = heldPieces[heldPieces.length - 1];
     const toCell = newBoard[to.y][to.x];
-    toCell.pieces.push(droppedPiece);
 
-    // Remove the dropped piece from held pieces
+    if (toCell.pieces.length > 0) {
+      const topPiece = toCell.pieces[toCell.pieces.length - 1];
+      if (
+        (topPiece.isStanding || topPiece.isCapstone) &&
+        !droppedPiece.isCapstone
+      )
+        return;
+      if (topPiece.isStanding) topPiece.isStanding = false;
+    }
+
+    toCell.pieces.push(droppedPiece);
     const newHeldPieces = heldPieces.slice(0, -1);
 
-    // If we have no more pieces, end the move
     if (newHeldPieces.length === 0) {
       setGameState({
         ...gameState,
@@ -206,7 +244,6 @@ export const GameBoard: React.FC<GameBoardProps> = ({
       return;
     }
 
-    // Continue the move
     setGameState({
       ...gameState,
       board: newBoard,
@@ -267,6 +304,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({
               const isValidMoveTarget = gameState.selectedCell
                 ? isValidMove(gameState.selectedCell, pos)
                 : false;
+              const isStartPos = isStartingCell(pos);
 
               return (
                 <BoardCell
@@ -281,12 +319,14 @@ export const GameBoard: React.FC<GameBoardProps> = ({
                   selectedStackIndex={gameState.selectedStackIndex}
                   movingStack={gameState.movingStack}
                   isInMovePath={isInMovePath(pos)}
+                  isStartingCell={isStartPos}
                 />
               );
             })
           )}
         </div>
       </div>
+
       <PieceBank
         color="black"
         stones={gameState.blackStones}

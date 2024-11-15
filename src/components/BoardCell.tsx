@@ -14,6 +14,7 @@ interface BoardCellProps {
   selectedStackIndex: number | null;
   movingStack: MovingStack | null;
   isInMovePath: boolean;
+  isStartingCell: boolean;
 }
 
 export const BoardCell: React.FC<BoardCellProps> = ({
@@ -27,15 +28,14 @@ export const BoardCell: React.FC<BoardCellProps> = ({
   selectedStackIndex,
   movingStack,
   isInMovePath,
+  isStartingCell,
 }) => {
-  // State for initial piece placement from piece bank
   const [showPlacementOptions, setShowPlacementOptions] = useState(false);
   const [droppedStone, setDroppedStone] = useState<{
     color: "white" | "black";
     isCapstone: boolean;
   } | null>(null);
 
-  // Handlers for initial piece placement (dragging from piece bank)
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault();
   };
@@ -49,7 +49,6 @@ export const BoardCell: React.FC<BoardCellProps> = ({
 
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault();
-    // If we're in the middle of a stack move, ignore drops
     if (movingStack) return;
 
     const data = e.dataTransfer.getData("text/plain");
@@ -81,52 +80,6 @@ export const BoardCell: React.FC<BoardCellProps> = ({
     }
   };
 
-  // Handler for stack movement and selection
-  const handleStackClick = (stackIndex: number) => {
-    if (cell.pieces.length > 0) {
-      if (isSelected) {
-        onStackSelect(undefined, null); // Clear selection
-      } else {
-        onStackSelect({ x, y }, stackIndex); // Make new selection
-      }
-    }
-  };
-
-  const handleCellClick = (e: React.MouseEvent) => {
-    e.stopPropagation();
-
-    console.log("handleCellClick", {
-      movingStack,
-      isValidMove,
-      selectedStackIndex,
-    });
-
-    // Case 1: We have selected pieces but haven't started moving yet
-    if (!movingStack && isValidMove && selectedStackIndex !== null) {
-      onStackMove({ x, y });
-      return;
-    }
-
-    // Case 2: We're in the middle of a move
-    if (movingStack) {
-      if (isSelected) {
-        // Cancel the move if clicking the start
-        onStackSelect(undefined, null);
-      } else if (isValidMove) {
-        // Continue the move if clicking valid target
-        onStackMove({ x, y });
-      }
-      return;
-    }
-
-    // Case 3: Normal selection/deselection
-    if (isSelected) {
-      onStackSelect(undefined, null);
-    } else if (cell.pieces.length > 0) {
-      onStackSelect({ x, y }, selectedStackIndex);
-    }
-  };
-
   const isCurrentStackPosition =
     movingStack &&
     movingStack.path.length > 0 &&
@@ -134,6 +87,35 @@ export const BoardCell: React.FC<BoardCellProps> = ({
       const lastPos = movingStack.path[movingStack.path.length - 1];
       return lastPos.x === x && lastPos.y === y;
     })();
+
+  const handleCellClick = () => {
+    if (isStartingCell && movingStack) {
+      onStackSelect({ x, y }, selectedStackIndex);
+      return;
+    }
+
+    if (isSelected) {
+      onStackSelect(undefined, null);
+    } else if (!movingStack && cell.pieces.length > 0) {
+      onStackSelect({ x, y }, selectedStackIndex);
+    } else if (isValidMove) {
+      onStackMove({ x, y });
+    }
+  };
+
+  const handleStackClick = (stackIndex: number, e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (isCurrentStackPosition && movingStack) {
+      // If clicking on the current position during a move, continue the move
+      onStackMove({ x, y });
+    } else if (cell.pieces.length > 0) {
+      if (isSelected) {
+        onStackSelect(undefined, null);
+      } else {
+        onStackSelect({ x, y }, stackIndex);
+      }
+    }
+  };
 
   return (
     <div
@@ -153,6 +135,7 @@ export const BoardCell: React.FC<BoardCellProps> = ({
         group
         ${isSelected ? "ring-2 ring-blue-500 ring-offset-0" : ""}
         ${isValidMove ? "ring-2 ring-green-500 ring-offset-0 ring-inset" : ""}
+        ${isStartingCell ? "ring-2 ring-red-500 ring-offset-0" : ""}
         ${isInMovePath ? "bg-amber-200" : ""}
         ${x === 0 ? "border-l-4" : ""}
         ${x === 4 ? "border-r-4" : ""}
@@ -160,12 +143,13 @@ export const BoardCell: React.FC<BoardCellProps> = ({
         ${y === 4 ? "border-b-4" : ""}
       `}
     >
-      {/* Main stack display */}
       {cell.pieces.length > 0 && (
         <div className="relative group">
           <StoneStack
             pieces={cell.pieces}
-            onPieceClick={handleStackClick}
+            onPieceClick={(index) =>
+              handleStackClick(index, event as unknown as React.MouseEvent)
+            }
             isInteractive={cell.pieces.length > 0}
             selectedIndex={isSelected ? selectedStackIndex : undefined}
             isMoving={isSelected && movingStack !== null}
@@ -173,7 +157,6 @@ export const BoardCell: React.FC<BoardCellProps> = ({
         </div>
       )}
 
-      {/* Floating stack during movement */}
       {isCurrentStackPosition && movingStack.heldPieces.length > 0 && (
         <div className="absolute -top-4 left-1/2 -translate-x-1/2">
           <StoneStack
@@ -184,16 +167,8 @@ export const BoardCell: React.FC<BoardCellProps> = ({
         </div>
       )}
 
-      {/* Initial placement options popup */}
       {showPlacementOptions && droppedStone && !movingStack && (
-        <div
-          className="
-            absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2
-            bg-white rounded-lg shadow-xl p-2
-            flex gap-4
-            z-50
-          "
-        >
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-white rounded-lg shadow-xl p-2 flex gap-4 z-50">
           <button
             onClick={() => handlePlacementOption(false)}
             className="flex flex-col items-center gap-1 p-2 hover:bg-gray-100 rounded transition-colors"

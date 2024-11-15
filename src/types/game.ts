@@ -10,6 +10,7 @@ export interface MovingStack {
   direction: Direction;
   path: Position[]; // Stores the cells we've moved through
   heldPieces: Stone[]; // Pieces still being carried
+  initialBoard: Cell[][]; // Store the board state when move started
 }
 
 export interface Stone {
