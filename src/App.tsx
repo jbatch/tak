@@ -5,23 +5,35 @@ import { Cell, GameState } from "./types/game";
 import { Card, CardContent } from "@/components/ui/card";
 
 const createInitialBoard = (size: number): Cell[][] => {
-  return Array(size)
+  const board: Cell[][] = Array(size)
     .fill(null)
     .map(() =>
       Array(size)
         .fill(null)
         .map(() => ({ pieces: [] }))
     );
+
+  // return board;
+  board[1][0] = {
+    pieces: [
+      { color: "white", isCapstone: false, isStanding: false },
+      { color: "white", isCapstone: false, isStanding: false },
+      { color: "white", isCapstone: false, isStanding: false },
+    ],
+  };
+  return board;
 };
 
 const initialGameState: GameState = {
   board: createInitialBoard(5), // Starting with a 5x5 board
   currentPlayer: "white",
   selectedCell: null,
+  selectedStackIndex: null,
   whiteCapstones: 1,
   blackCapstones: 1,
   whiteStones: 21,
   blackStones: 21,
+  movingStack: null,
 };
 
 function App() {
