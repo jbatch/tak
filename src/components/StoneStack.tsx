@@ -25,6 +25,16 @@ export const StoneStack: React.FC<StoneStackProps> = ({
       index >= selectedIndex
     );
   };
+
+  const getVerticalOffset = (index: number): number => {
+    if (selectedIndex == null || index < selectedIndex) {
+      // Non-selected stones stack normally
+      return -index * 6;
+    }
+    // Selected stones stack higher
+    return -selectedIndex * 6 - (index - selectedIndex) * 6;
+  };
+
   return (
     <div
       className={`
@@ -55,7 +65,7 @@ export const StoneStack: React.FC<StoneStackProps> = ({
             onPieceClick?.(index);
           }}
           style={{
-            transform: `translateY(${-index * 6}px) ${
+            transform: `translateY(${getVerticalOffset(index)}px) ${
               stone.isStanding ? "translateX(-50%)" : ""
             } ${isSelected(index) ? "scale(1.1)" : ""}`,
             zIndex: index,

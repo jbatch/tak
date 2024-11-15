@@ -96,8 +96,14 @@ export const BoardCell: React.FC<BoardCellProps> = ({
 
     if (isSelected) {
       onStackSelect(undefined, null);
-    } else if (!movingStack && cell.pieces.length > 0) {
+    } else if (
+      !movingStack &&
+      selectedStackIndex !== null &&
+      cell.pieces.length > 0
+    ) {
       onStackSelect({ x, y }, selectedStackIndex);
+    } else if (!movingStack && cell.pieces.length > 0) {
+      onStackSelect({ x, y }, 0);
     } else if (isValidMove) {
       onStackMove({ x, y });
     }
@@ -105,12 +111,21 @@ export const BoardCell: React.FC<BoardCellProps> = ({
 
   const handleStackClick = (stackIndex: number, e: React.MouseEvent) => {
     e.stopPropagation();
+    console.log("handleStackClick", {
+      stackIndex,
+      isCurrentStackPosition,
+      movingStack,
+      isSelected,
+    });
     if (isCurrentStackPosition && movingStack) {
       // If clicking on the current position during a move, continue the move
       onStackMove({ x, y });
     } else if (cell.pieces.length > 0) {
       if (isSelected) {
         onStackSelect(undefined, null);
+      } else if (selectedStackIndex != null && isValidMove) {
+        // We have selected stones and haven't started a move yet
+        onStackMove({ x, y });
       } else {
         onStackSelect({ x, y }, stackIndex);
       }
@@ -133,9 +148,9 @@ export const BoardCell: React.FC<BoardCellProps> = ({
         transition-all duration-200
         relative
         group
-        ${isSelected ? "ring-2 ring-blue-500 ring-offset-0" : ""}
+        ${isSelected ? "ring-2 ring-blue-500 ring-offset-0 ring-inset" : ""}
         ${isValidMove ? "ring-2 ring-green-500 ring-offset-0 ring-inset" : ""}
-        ${isStartingCell ? "ring-2 ring-red-500 ring-offset-0" : ""}
+        ${isStartingCell ? "ring-2 ring-red-500 ring-offset-0 rin-inset" : ""}
         ${isInMovePath ? "bg-amber-200" : ""}
         ${x === 0 ? "border-l-4" : ""}
         ${x === 4 ? "border-r-4" : ""}

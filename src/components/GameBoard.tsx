@@ -27,6 +27,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({
       pos,
       movingStack: gameState.movingStack,
       starting: pos && isStartingCell(pos),
+      stackIndex,
     });
     // Cancel move by clicking starting cell
     if (pos && gameState.movingStack && isStartingCell(pos)) {
@@ -67,9 +68,31 @@ export const GameBoard: React.FC<GameBoardProps> = ({
   const isValidMove = (from: Position, to: Position): boolean => {
     if (!gameState.movingStack) {
       if (!gameState.selectedCell) return false;
+
       const dx = Math.abs(to.x - from.x);
       const dy = Math.abs(to.y - from.y);
-      return (dx === 1 && dy === 0) || (dx === 0 && dy === 1);
+
+      // Basic adjacency check
+      if (!((dx === 1 && dy === 0) || (dx === 0 && dy === 1))) return false;
+
+      // Check for standing stones and capstones
+      const fromCell = gameState.board[from.y][from.x];
+      const toCell = gameState.board[to.y][to.x];
+
+      if (toCell.pieces.length > 0) {
+        const movingPiece = fromCell.pieces[gameState.selectedStackIndex ?? 0];
+        const targetPiece = toCell.pieces[toCell.pieces.length - 1];
+
+        // Can't move onto standing stone or capstone unless moving a capstone
+        if (
+          (targetPiece.isStanding || targetPiece.isCapstone) &&
+          !movingPiece.isCapstone
+        ) {
+          return false;
+        }
+      }
+
+      return true;
     }
 
     const currentPos =
@@ -84,19 +107,36 @@ export const GameBoard: React.FC<GameBoardProps> = ({
     const dy = Math.abs(to.y - currentPos.y);
     const direction = gameState.movingStack.direction;
 
-    if (direction === "up" || direction === "down") {
-      return (
-        dx === 0 &&
-        dy === 1 &&
-        (direction === "up" ? to.y < currentPos.y : to.y > currentPos.y)
-      );
-    } else {
-      return (
-        dy === 0 &&
-        dx === 1 &&
-        (direction === "left" ? to.x < currentPos.x : to.x > currentPos.x)
-      );
+    // Check direction constraints
+    const validDirection =
+      direction === "up" || direction === "down"
+        ? dx === 0 &&
+          dy === 1 &&
+          (direction === "up" ? to.y < currentPos.y : to.y > currentPos.y)
+        : dy === 0 &&
+          dx === 1 &&
+          (direction === "left" ? to.x < currentPos.x : to.x > currentPos.x);
+
+    if (!validDirection) return false;
+
+    // Check for standing stones and capstones
+    const movingPiece =
+      gameState.movingStack.heldPieces[
+        gameState.movingStack.heldPieces.length - 1
+      ];
+    const targetCell = gameState.board[to.y][to.x];
+
+    if (targetCell.pieces.length > 0) {
+      const targetPiece = targetCell.pieces[targetCell.pieces.length - 1];
+      if (
+        (targetPiece.isStanding || targetPiece.isCapstone) &&
+        !movingPiece.isCapstone
+      ) {
+        return false;
+      }
     }
+
+    return true;
   };
 
   const handlePieceDrop = (x: number, y: number, stone: Stone) => {
@@ -149,7 +189,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({
       fromCell.pieces = fromCell.pieces.slice(0, gameState.selectedStackIndex);
 
       // Handle first piece placement
-      const droppedPiece = movingPieces.pop()!;
+      const droppedPiece = movingPieces.shift()!;
       if (toCell.pieces.length > 0) {
         const topPiece = toCell.pieces[toCell.pieces.length - 1];
         if (
@@ -161,6 +201,16 @@ export const GameBoard: React.FC<GameBoardProps> = ({
       }
       toCell.pieces.push(droppedPiece);
 
+      if (movingPieces.length === 0) {
+        setGameState({
+          ...gameState,
+          board: newBoard,
+          selectedCell: null,
+          selectedStackIndex: null,
+          movingStack: null,
+        });
+        return;
+      }
       setGameState({
         ...gameState,
         board: newBoard,
@@ -184,9 +234,9 @@ export const GameBoard: React.FC<GameBoardProps> = ({
     if (to.x === lastPos.x && to.y === lastPos.y) {
       if (heldPieces.length === 0) return;
 
-      const droppedPiece = heldPieces[heldPieces.length - 1];
+      const droppedPiece = heldPieces[0];
       currentCell.pieces.push(droppedPiece);
-      const newHeldPieces = heldPieces.slice(0, -1);
+      const newHeldPieces = heldPieces.slice(1);
 
       if (newHeldPieces.length === 0) {
         setGameState({
@@ -216,7 +266,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({
     const direction = getValidMoveDirection(lastPos, to);
     if (direction !== gameState.movingStack.direction) return;
 
-    const droppedPiece = heldPieces[heldPieces.length - 1];
+    const droppedPiece = heldPieces[0];
     const toCell = newBoard[to.y][to.x];
 
     if (toCell.pieces.length > 0) {
@@ -230,7 +280,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({
     }
 
     toCell.pieces.push(droppedPiece);
-    const newHeldPieces = heldPieces.slice(0, -1);
+    const newHeldPieces = heldPieces.slice(1);
 
     if (newHeldPieces.length === 0) {
       setGameState({
