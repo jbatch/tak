@@ -113,9 +113,11 @@ export const BoardCell: React.FC<BoardCellProps> = ({
     e.stopPropagation();
     console.log("handleStackClick", {
       stackIndex,
+      selectedStackIndex,
       isCurrentStackPosition,
       movingStack,
       isSelected,
+      isValidMove,
     });
     if (isCurrentStackPosition && movingStack) {
       // If clicking on the current position during a move, continue the move
