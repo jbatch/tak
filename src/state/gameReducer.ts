@@ -33,17 +33,33 @@ const createInitialBoard = (size: number): Cell[][] => {
     );
 };
 
-const getInitialState = (): GameState => ({
-  board: createInitialBoard(5),
-  currentPlayer: "white",
-  selectedCell: null,
-  selectedStackIndex: null,
-  whiteCapstones: 1,
-  blackCapstones: 1,
-  whiteStones: 21,
-  blackStones: 21,
-  movingStack: null,
-});
+const getInitialState = (testing: boolean = false): GameState => {
+  const newState: GameState = {
+    board: createInitialBoard(5),
+    currentPlayer: "white",
+    selectedCell: null,
+    selectedStackIndex: null,
+    whiteCapstones: 1,
+    blackCapstones: 1,
+    whiteStones: 21,
+    blackStones: 21,
+    movingStack: null,
+  };
+  if (testing) {
+    newState.board[1][0].pieces = [
+      { color: "white", isStanding: false, isCapstone: false },
+      { color: "white", isStanding: false, isCapstone: false },
+      { color: "white", isStanding: false, isCapstone: false },
+    ];
+
+    newState.board[1][4].pieces = [
+      { color: "black", isStanding: false, isCapstone: false },
+      { color: "black", isStanding: false, isCapstone: false },
+      { color: "black", isStanding: false, isCapstone: false },
+    ];
+  }
+  return newState;
+};
 
 // Deep clone the board
 const cloneBoard = (board: Cell[][]): Cell[][] => {
@@ -146,6 +162,22 @@ export const gameReducer = (
   switch (action.type) {
     case "ADD_STONE": {
       const { position, stone } = action;
+
+      // Validate current player
+      if (stone.color !== state.currentPlayer) return state;
+
+      // Can't place stones during a move
+      if (state.movingStack) return state;
+
+      // Validate stone counts
+      if (stone.color === "white") {
+        if (stone.isCapstone && state.whiteCapstones <= 0) return state;
+        if (!stone.isCapstone && state.whiteStones <= 0) return state;
+      } else {
+        if (stone.isCapstone && state.blackCapstones <= 0) return state;
+        if (!stone.isCapstone && state.blackStones <= 0) return state;
+      }
+
       const newBoard = cloneBoard(state.board);
       newBoard[position.y][position.x].pieces.push(stone);
 
@@ -168,14 +200,15 @@ export const gameReducer = (
           stone.color === "black" && !stone.isCapstone
             ? state.blackStones - 1
             : state.blackStones,
+        currentPlayer: state.currentPlayer === "white" ? "black" : "white",
       };
     }
 
     case "SELECT_STACK": {
       const { position, stackIndex } = action;
 
-      // If no position, clear selection
-      if (!position) {
+      // If canceling selection
+      if (!position || stackIndex === null) {
         return {
           ...state,
           selectedCell: null,
@@ -184,19 +217,22 @@ export const gameReducer = (
         };
       }
 
+      // Can't select during a move
+      if (state.movingStack) return state;
+
       const cell = state.board[position.y][position.x];
+      if (!cell.pieces.length) return state;
+
       const topPiece = cell.pieces[cell.pieces.length - 1];
 
-      // Only allow selection of current player's pieces
-      if (topPiece?.color === state.currentPlayer) {
-        return {
-          ...state,
-          selectedCell: position,
-          selectedStackIndex: stackIndex,
-        };
-      }
+      // Can only select current player's pieces
+      if (topPiece.color !== state.currentPlayer) return state;
 
-      return state;
+      return {
+        ...state,
+        selectedCell: position,
+        selectedStackIndex: stackIndex,
+      };
     }
 
     case "START_MOVE": {
@@ -258,7 +294,19 @@ export const gameReducer = (
 
     case "CONTINUE_MOVE": {
       const { to } = action;
-      if (!state.movingStack) return state;
+
+      if (!state.movingStack) {
+        // If no moving stack but we have a selection, start a new move
+        if (state.selectedCell && state.selectedStackIndex !== null) {
+          return gameReducer(state, {
+            type: "START_MOVE",
+            from: state.selectedCell,
+            to,
+            stackIndex: state.selectedStackIndex,
+          });
+        }
+        return state;
+      }
 
       const { path, heldPieces } = state.movingStack;
       const lastPos = path[path.length - 1];

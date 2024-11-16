@@ -1,35 +1,28 @@
+// src/components/BoardCell.tsx
 import React, { useState } from "react";
-import { Cell, MovingStack, Position, Stone as StoneType } from "../types/game";
+import { Cell, MovingStack, Position } from "../types/game";
 import { StoneStack } from "./StoneStack";
 import { Stone } from "./Stone";
+import { useGame } from "../state/gameContext";
 
 interface BoardCellProps {
   cell: Cell;
   position: Position;
-  onDrop: (x: number, y: number, stone: StoneType) => void;
-  onStackSelect: (pos: Position | undefined, stackIndex: number | null) => void;
-  onStackMove: (to: Position) => void;
   isSelected: boolean;
   isValidMove: boolean;
-  selectedStackIndex: number | null;
-  movingStack: MovingStack | null;
   isInMovePath: boolean;
   isStartingCell: boolean;
 }
 
 export const BoardCell: React.FC<BoardCellProps> = ({
   cell,
-  position: { x, y },
-  onDrop,
-  onStackSelect,
-  onStackMove,
+  position,
   isSelected,
   isValidMove,
-  selectedStackIndex,
-  movingStack,
   isInMovePath,
   isStartingCell,
 }) => {
+  const { state, addStone, selectStack, continueMove, cancelMove } = useGame();
   const [showPlacementOptions, setShowPlacementOptions] = useState(false);
   const [droppedStone, setDroppedStone] = useState<{
     color: "white" | "black";
@@ -49,8 +42,6 @@ export const BoardCell: React.FC<BoardCellProps> = ({
 
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault();
-    if (movingStack) return;
-
     const data = e.dataTransfer.getData("text/plain");
     try {
       const stone = JSON.parse(data) as {
@@ -59,7 +50,7 @@ export const BoardCell: React.FC<BoardCellProps> = ({
       };
 
       if (stone.isCapstone) {
-        onDrop(x, y, { ...stone, isStanding: false });
+        addStone(position, { ...stone, isStanding: false });
       } else {
         setDroppedStone(stone);
         setShowPlacementOptions(true);
@@ -71,7 +62,7 @@ export const BoardCell: React.FC<BoardCellProps> = ({
 
   const handlePlacementOption = (isStanding: boolean) => {
     if (droppedStone) {
-      onDrop(x, y, {
+      addStone(position, {
         ...droppedStone,
         isStanding,
       });
@@ -80,58 +71,45 @@ export const BoardCell: React.FC<BoardCellProps> = ({
     }
   };
 
-  const isCurrentStackPosition =
-    movingStack &&
-    movingStack.path.length > 0 &&
-    (() => {
-      const lastPos = movingStack.path[movingStack.path.length - 1];
-      return lastPos.x === x && lastPos.y === y;
-    })();
-
   const handleCellClick = () => {
-    if (isStartingCell && movingStack) {
-      onStackSelect({ x, y }, selectedStackIndex);
+    if (isStartingCell && state.movingStack) {
+      cancelMove();
       return;
     }
 
     if (isSelected) {
-      onStackSelect(undefined, null);
-    } else if (
-      !movingStack &&
-      selectedStackIndex !== null &&
-      cell.pieces.length > 0
-    ) {
-      onStackSelect({ x, y }, selectedStackIndex);
-    } else if (!movingStack && cell.pieces.length > 0) {
-      onStackSelect({ x, y }, 0);
+      selectStack(undefined, null);
     } else if (isValidMove) {
-      onStackMove({ x, y });
+      continueMove(position);
     }
   };
 
   const handleStackClick = (stackIndex: number, e: React.MouseEvent) => {
     e.stopPropagation();
-    console.log("handleStackClick", {
-      stackIndex,
-      selectedStackIndex,
-      isCurrentStackPosition,
-      movingStack,
-      isSelected,
-      isValidMove,
-    });
-    if (isCurrentStackPosition && movingStack) {
-      // If clicking on the current position during a move, continue the move
-      onStackMove({ x, y });
-    } else if (cell.pieces.length > 0) {
-      if (isSelected) {
-        onStackSelect(undefined, null);
-      } else if (selectedStackIndex != null && isValidMove) {
-        // We have selected stones and haven't started a move yet
-        onStackMove({ x, y });
-      } else {
-        onStackSelect({ x, y }, stackIndex);
-      }
+    if (isStartingCell && state.movingStack) {
+      cancelMove();
+      return;
     }
+
+    if (isSelected) {
+      selectStack(undefined, null);
+      return;
+    }
+    if (isValidMove) {
+      continueMove(position);
+      return;
+    }
+    selectStack(position, stackIndex);
+  };
+
+  const isCurrentStackPosition = (
+    position: Position,
+    movingStack: MovingStack | null
+  ): boolean => {
+    if (!movingStack || movingStack.heldPieces.length === 0) return false;
+
+    const currentPos = movingStack.path[movingStack.path.length - 1];
+    return currentPos.x === position.x && currentPos.y === position.y;
   };
 
   return (
@@ -152,12 +130,8 @@ export const BoardCell: React.FC<BoardCellProps> = ({
         group
         ${isSelected ? "ring-2 ring-blue-500 ring-offset-0 ring-inset" : ""}
         ${isValidMove ? "ring-2 ring-green-500 ring-offset-0 ring-inset" : ""}
-        ${isStartingCell ? "ring-2 ring-red-500 ring-offset-0 rin-inset" : ""}
+        ${isStartingCell ? "ring-2 ring-red-500 ring-offset-0 ring-inset" : ""}
         ${isInMovePath ? "bg-amber-200" : ""}
-        ${x === 0 ? "border-l-4" : ""}
-        ${x === 4 ? "border-r-4" : ""}
-        ${y === 0 ? "border-t-4" : ""}
-        ${y === 4 ? "border-b-4" : ""}
       `}
     >
       {cell.pieces.length > 0 && (
@@ -168,23 +142,24 @@ export const BoardCell: React.FC<BoardCellProps> = ({
               handleStackClick(index, event as unknown as React.MouseEvent)
             }
             isInteractive={cell.pieces.length > 0}
-            selectedIndex={isSelected ? selectedStackIndex : undefined}
-            isMoving={isSelected && movingStack !== null}
+            selectedIndex={isSelected ? state.selectedStackIndex : undefined}
+            isMoving={isSelected && state.movingStack !== null}
           />
         </div>
       )}
 
-      {isCurrentStackPosition && movingStack.heldPieces.length > 0 && (
-        <div className="absolute -top-4 left-1/2 -translate-x-1/2">
-          <StoneStack
-            pieces={movingStack.heldPieces}
-            isFloating={true}
-            isInteractive={false}
-          />
-        </div>
-      )}
+      {state.movingStack &&
+        isCurrentStackPosition(position, state.movingStack) && (
+          <div className="absolute -top-4 left-1/2 -translate-x-1/2">
+            <StoneStack
+              pieces={state.movingStack.heldPieces}
+              isFloating={true}
+              isInteractive={false}
+            />
+          </div>
+        )}
 
-      {showPlacementOptions && droppedStone && !movingStack && (
+      {showPlacementOptions && droppedStone && !state.movingStack && (
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-white rounded-lg shadow-xl p-2 flex gap-4 z-50">
           <button
             onClick={() => handlePlacementOption(false)}

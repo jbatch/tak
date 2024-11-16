@@ -26,7 +26,7 @@ const GameContext = createContext<GameContextType | undefined>(undefined);
 export const GameProvider: React.FC<{ children: React.ReactNode }> = ({
   children,
 }) => {
-  const [state, dispatch] = useReducer(gameReducer, getInitialState());
+  const [state, dispatch] = useReducer(gameReducer, getInitialState(true));
 
   const addStone = (position: Position, stone: Stone) => {
     dispatch({ type: "ADD_STONE", position, stone });
@@ -63,15 +63,14 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({
     if (to.x < 0 || to.x >= 5 || to.y < 0 || to.y >= 5) return false;
 
     if (state.movingStack) {
-      // Moving stack validation logic
+      const { direction, heldPieces } = state.movingStack;
       const lastPos = state.movingStack.path[state.movingStack.path.length - 1];
 
       // Allow dropping in current position
       if (lastPos.x === to.x && lastPos.y === to.y) return true;
 
-      // Follow direction constraints
-      const direction = state.movingStack.direction;
-      return (
+      // Check basic direction constraints first
+      const isValidDirection =
         (direction === "up" && to.y === lastPos.y - 1 && to.x === lastPos.x) ||
         (direction === "down" &&
           to.y === lastPos.y + 1 &&
@@ -79,11 +78,29 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({
         (direction === "left" &&
           to.x === lastPos.x - 1 &&
           to.y === lastPos.y) ||
-        (direction === "right" && to.x === lastPos.x + 1 && to.y === lastPos.y)
-      );
+        (direction === "right" && to.x === lastPos.x + 1 && to.y === lastPos.y);
+
+      if (!isValidDirection) return false;
+
+      // If direction is valid, check target cell compatibility
+      const targetCell = state.board[to.y][to.x];
+      if (targetCell.pieces.length > 0) {
+        const movingPiece = heldPieces[0]; // The next piece to be placed
+        const targetPiece = targetCell.pieces[targetCell.pieces.length - 1];
+
+        // Can't move onto standing stone or capstone unless moving a capstone
+        if (
+          (targetPiece.isStanding || targetPiece.isCapstone) &&
+          !movingPiece.isCapstone
+        ) {
+          return false;
+        }
+      }
+
+      return true;
     }
 
-    // Initial move validation for adjacent squares
+    // Initial move validation...
     if (!((dx === 1 && dy === 0) || (dx === 0 && dy === 1))) return false;
 
     // Check if there's a stack selected
@@ -139,6 +156,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({
 };
 
 // Create the custom hook
+// eslint-disable-next-line react-refresh/only-export-components
 export const useGame = () => {
   const context = useContext(GameContext);
   if (context === undefined) {

@@ -1,58 +1,12 @@
 // src/components/GameBoard.tsx
 import React from "react";
-import { Position, Stone } from "../types/game";
+import { Position } from "../types/game";
 import { BoardCell } from "./BoardCell";
 import { PieceBank } from "./PieceBank";
 import { useGame } from "../state/gameContext";
 
 export const GameBoard: React.FC = () => {
-  const {
-    state,
-    addStone,
-    selectStack,
-    startMove,
-    continueMove,
-    isValidMove,
-    getCurrentPlayer,
-  } = useGame();
-
-  const handlePieceDrop = (x: number, y: number, stone: Stone) => {
-    // Only allow dropping pieces of the current player's color
-    if (stone.color !== getCurrentPlayer()) return;
-    addStone({ x, y }, stone);
-  };
-
-  const handleStackSelect = (
-    pos: Position | undefined,
-    stackIndex: number | null
-  ) => {
-    // If we're in the middle of a move, ignore new selections
-    if (state.movingStack) return;
-    selectStack(pos, stackIndex);
-  };
-
-  const handleStackMove = (to: Position) => {
-    // If there's no selection, ignore the move
-    if (!state.selectedCell || state.selectedStackIndex === null) return;
-
-    // If we're already moving, continue the move
-    if (state.movingStack) {
-      continueMove(to);
-      return;
-    }
-
-    // Otherwise start a new move
-    if (isValidMove(state.selectedCell, to)) {
-      startMove(state.selectedCell, to, state.selectedStackIndex);
-    }
-  };
-
-  const getValidMovePositions = (pos: Position): boolean => {
-    if (!state.selectedCell) return false;
-
-    // For the currently selected cell, check if this position is a valid move target
-    return isValidMove(state.selectedCell, pos);
-  };
+  const { state, isValidMove, getCurrentPlayer } = useGame();
 
   const isStartingCell = (pos: Position): boolean => {
     if (!state.movingStack) return false;
@@ -103,20 +57,17 @@ export const GameBoard: React.FC = () => {
               const pos = { x, y };
               const isSelected =
                 state.selectedCell?.x === x && state.selectedCell?.y === y;
-              const isValidMoveTarget = getValidMovePositions(pos);
+              const isValidMoveTarget = state.selectedCell
+                ? isValidMove(state.selectedCell, pos)
+                : false;
 
               return (
                 <BoardCell
                   key={`${x}-${y}`}
                   cell={cell}
                   position={pos}
-                  onDrop={handlePieceDrop}
-                  onStackSelect={handleStackSelect}
-                  onStackMove={handleStackMove}
                   isSelected={isSelected}
                   isValidMove={isValidMoveTarget}
-                  selectedStackIndex={state.selectedStackIndex}
-                  movingStack={state.movingStack}
                   isInMovePath={isInMovePath(pos)}
                   isStartingCell={isStartingCell(pos)}
                 />
