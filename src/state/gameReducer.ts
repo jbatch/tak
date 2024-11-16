@@ -1,13 +1,12 @@
 // src/state/gameReducer.ts
 
+import { GameState, Stone, Position, Cell } from "../types/game";
+import { checkWinCondition } from "../game/winCondition";
 import {
-  GameState,
-  Stone,
-  Position,
-  Cell,
-  Direction,
-  MovingStack,
-} from "../types/game";
+  cloneBoard,
+  getMoveDirection,
+  isValidMove,
+} from "@/game/moveValidator";
 
 // Expanded action types to include all the necessary move data
 type GameAction =
@@ -20,7 +19,13 @@ type GameAction =
   | { type: "START_MOVE"; from: Position; to: Position; stackIndex: number }
   | { type: "CONTINUE_MOVE"; to: Position }
   | { type: "CANCEL_MOVE" }
-  | { type: "END_TURN" };
+  | { type: "RESET_GAME" }
+  | { type: "RESET_GAME" }
+  | { type: "END_TURN" }
+  | {
+      type: "SET_DRAGGED_STONE";
+      stone: { color: "white" | "black"; isCapstone: boolean } | null;
+    };
 
 // Helper functions
 const createInitialBoard = (size: number): Cell[][] => {
@@ -44,6 +49,8 @@ const getInitialState = (testing: boolean = false): GameState => {
     whiteStones: 21,
     blackStones: 21,
     movingStack: null,
+    winner: null,
+    draggedStone: null,
   };
   if (testing) {
     newState.board[1][0].pieces = [
@@ -61,96 +68,18 @@ const getInitialState = (testing: boolean = false): GameState => {
   return newState;
 };
 
-// Deep clone the board
-const cloneBoard = (board: Cell[][]): Cell[][] => {
-  return board.map((row) =>
-    row.map((cell) => ({
-      pieces: [...cell.pieces],
-    }))
-  );
-};
-
-// Get move direction from positions
-const getMoveDirection = (from: Position, to: Position): Direction | null => {
-  if (from.x === to.x) {
-    if (to.y === from.y - 1) return "up";
-    if (to.y === from.y + 1) return "down";
+const checkAndUpdateWinner = (state: GameState): GameState => {
+  const winner = checkWinCondition(state.board);
+  if (winner) {
+    return {
+      ...state,
+      winner,
+      selectedCell: null,
+      selectedStackIndex: null,
+      movingStack: null,
+    };
   }
-  if (from.y === to.y) {
-    if (to.x === from.x - 1) return "left";
-    if (to.x === from.x + 1) return "right";
-  }
-  return null;
-};
-
-// Validate move based on direction and board state
-const isValidMove = (
-  from: Position,
-  to: Position,
-  board: Cell[][],
-  movingStack: MovingStack | null,
-  selectedStackIndex: number | null
-): boolean => {
-  const dx = Math.abs(to.x - from.x);
-  const dy = Math.abs(to.y - from.y);
-
-  if (!movingStack) {
-    // Initial move validation
-    if (!((dx === 1 && dy === 0) || (dx === 0 && dy === 1))) return false;
-
-    const fromCell = board[from.y][from.x];
-    const toCell = board[to.y][to.x];
-
-    if (toCell.pieces.length > 0) {
-      const movingPiece = fromCell.pieces[selectedStackIndex ?? 0];
-      const targetPiece = toCell.pieces[toCell.pieces.length - 1];
-
-      if (
-        (targetPiece.isStanding || targetPiece.isCapstone) &&
-        !movingPiece.isCapstone
-      ) {
-        return false;
-      }
-    }
-
-    return true;
-  }
-
-  // Continuing move validation
-  const currentPos = movingStack.path[movingStack.path.length - 1];
-
-  // Allow dropping in current position
-  if (currentPos.x === to.x && currentPos.y === to.y) return true;
-
-  const direction = movingStack.direction;
-
-  // Check direction constraints
-  const validDirection =
-    direction === "up" || direction === "down"
-      ? dx === 0 &&
-        dy === 1 &&
-        (direction === "up" ? to.y < currentPos.y : to.y > currentPos.y)
-      : dy === 0 &&
-        dx === 1 &&
-        (direction === "left" ? to.x < currentPos.x : to.x > currentPos.x);
-
-  if (!validDirection) return false;
-
-  // Check for standing stones and capstones
-  const movingPiece = movingStack.heldPieces[movingStack.heldPieces.length - 1];
-  const targetCell = board[to.y][to.x];
-
-  if (targetCell.pieces.length > 0) {
-    const targetPiece = targetCell.pieces[targetCell.pieces.length - 1];
-    if (
-      (targetPiece.isStanding || targetPiece.isCapstone) &&
-      !movingPiece.isCapstone
-    ) {
-      return false;
-    }
-  }
-
-  return true;
+  return state;
 };
 
 // The complete reducer
@@ -158,7 +87,9 @@ export const gameReducer = (
   state: GameState,
   action: GameAction
 ): GameState => {
-  console.log("Action", { action });
+  if (state.winner && action.type !== "RESET_GAME") {
+    return state;
+  }
   switch (action.type) {
     case "ADD_STONE": {
       const { position, stone } = action;
@@ -178,10 +109,25 @@ export const gameReducer = (
         if (!stone.isCapstone && state.blackStones <= 0) return state;
       }
 
+      // Check if target cell is empty or prevent placement on capstones
+      const targetCell = state.board[position.y][position.x];
+      if (targetCell.pieces.length > 0) {
+        const topPiece = targetCell.pieces[targetCell.pieces.length - 1];
+        if (topPiece.isCapstone) return state;
+        if (topPiece.isStanding && !stone.isCapstone) return state;
+      }
+
       const newBoard = cloneBoard(state.board);
+      // Handle standing pieces
+      if (newBoard[position.y][position.x].pieces.length > 0) {
+        const topPiece = targetCell.pieces[targetCell.pieces.length - 1];
+        if (topPiece.isStanding && stone.isCapstone) {
+          topPiece.isStanding = false;
+        }
+      }
       newBoard[position.y][position.x].pieces.push(stone);
 
-      return {
+      const newState: GameState = {
         ...state,
         board: newBoard,
         whiteCapstones:
@@ -202,6 +148,7 @@ export const gameReducer = (
             : state.blackStones,
         currentPlayer: state.currentPlayer === "white" ? "black" : "white",
       };
+      return checkAndUpdateWinner(newState);
     }
 
     case "SELECT_STACK": {
@@ -238,7 +185,9 @@ export const gameReducer = (
     case "START_MOVE": {
       const { from, to, stackIndex } = action;
 
-      if (!isValidMove(from, to, state.board, null, stackIndex)) {
+      if (
+        !isValidMove(from, to, { ...state, selectedStackIndex: stackIndex })
+      ) {
         return state;
       }
 
@@ -268,7 +217,7 @@ export const gameReducer = (
 
       // If no more pieces to move, end the move
       if (movingPieces.length === 0) {
-        return {
+        const newState: GameState = {
           ...state,
           board: newBoard,
           selectedCell: null,
@@ -276,6 +225,7 @@ export const gameReducer = (
           movingStack: null,
           currentPlayer: state.currentPlayer === "white" ? "black" : "white",
         };
+        return checkAndUpdateWinner(newState);
       }
 
       // Create moving stack state for continued movement
@@ -311,7 +261,7 @@ export const gameReducer = (
       const { path, heldPieces } = state.movingStack;
       const lastPos = path[path.length - 1];
 
-      if (!isValidMove(lastPos, to, state.board, state.movingStack, null)) {
+      if (!isValidMove(state.selectedCell!, to, state)) {
         return state;
       }
 
@@ -328,7 +278,7 @@ export const gameReducer = (
 
         // If no more pieces to move, end the move
         if (newHeldPieces.length === 0) {
-          return {
+          const newState: GameState = {
             ...state,
             board: newBoard,
             movingStack: null,
@@ -336,6 +286,7 @@ export const gameReducer = (
             selectedStackIndex: null,
             currentPlayer: state.currentPlayer === "white" ? "black" : "white",
           };
+          return checkAndUpdateWinner(newState);
         }
 
         return {
@@ -364,7 +315,7 @@ export const gameReducer = (
 
       // If no more pieces to move, end the move
       if (newHeldPieces.length === 0) {
-        return {
+        const newState: GameState = {
           ...state,
           board: newBoard,
           movingStack: null,
@@ -372,6 +323,7 @@ export const gameReducer = (
           selectedStackIndex: null,
           currentPlayer: state.currentPlayer === "white" ? "black" : "white",
         };
+        return checkAndUpdateWinner(newState);
       }
 
       return {
@@ -396,6 +348,9 @@ export const gameReducer = (
         movingStack: null,
       };
     }
+    case "RESET_GAME": {
+      return getInitialState();
+    }
 
     case "END_TURN": {
       return {
@@ -406,6 +361,12 @@ export const gameReducer = (
         movingStack: null,
       };
     }
+
+    case "SET_DRAGGED_STONE":
+      return {
+        ...state,
+        draggedStone: action.stone,
+      };
 
     default:
       return state;

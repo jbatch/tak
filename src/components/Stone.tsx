@@ -17,9 +17,9 @@ export const Stone: React.FC<StoneProps> = ({
 }) => {
   // Base dimensions for flat pieces
   const sizeClasses = {
-    sm: isCapstone ? "w-8 h-10" : "w-8 h-8",
-    md: isCapstone ? "w-12 h-14" : "w-12 h-12",
-    lg: isCapstone ? "w-16 h-18" : "w-16 h-16",
+    sm: isCapstone ? "w-6 h-10" : "w-8 h-8",
+    md: isCapstone ? "w-8 h-14" : "w-12 h-12",
+    lg: isCapstone ? "w-10 h-18" : "w-16 h-16",
   };
 
   // Standing pieces are thinner and taller
@@ -28,6 +28,41 @@ export const Stone: React.FC<StoneProps> = ({
     md: "w-3 h-12",
     lg: "w-4 h-16",
   };
+
+  if (isCapstone && !isStanding) {
+    return (
+      <div className={`relative ${sizeClasses[size]} ${className}`}>
+        {/* Half circle crown */}
+        <div
+          className={`
+            absolute top-0 left-0 right-0
+            ${
+              color === "white"
+                ? "bg-white border-gray-300"
+                : "bg-gray-900 border-gray-600"
+            }
+            border-r-2 border-t-2 border-l-2
+            rounded-t-full
+            h-3
+          `}
+        />
+        {/* Main body */}
+        <div
+          className={`
+            absolute bottom-0 left-0 right-0
+            ${
+              color === "white"
+                ? "bg-white border-gray-300"
+                : "bg-gray-900 border-gray-600"
+            }
+            border-r-2 border-b-2 border-l-2
+            h-[calc(100%-0.75rem)]
+            shadow-md
+          `}
+        />
+      </div>
+    );
+  }
 
   return (
     <div
@@ -47,3 +82,5 @@ export const Stone: React.FC<StoneProps> = ({
     />
   );
 };
+
+export default Stone;

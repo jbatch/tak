@@ -33,4 +33,9 @@ export interface GameState {
   whiteStones: number;
   blackStones: number;
   movingStack: MovingStack | null;
+  winner: "white" | "black" | "draw" | null;
+  draggedStone: {
+    color: "white" | "black";
+    isCapstone: boolean;
+  } | null;
 }

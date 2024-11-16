@@ -26,13 +26,36 @@ export const StoneStack: React.FC<StoneStackProps> = ({
     );
   };
 
-  const getVerticalOffset = (index: number): number => {
+  const getVerticalOffset = (stone: StoneType, index: number): string => {
+    let offset = 6;
+    if (stone.isCapstone) {
+      offset -= 8;
+    }
     if (selectedIndex == null || index < selectedIndex) {
       // Non-selected stones stack normally
-      return -index * 6;
+      offset -= index * 6;
+    } else {
+      offset -= selectedIndex * 6 + (index - selectedIndex) * 6;
     }
     // Selected stones stack higher
-    return -selectedIndex * 6 - (index - selectedIndex) * 6;
+    return `${offset}px`;
+  };
+
+  const getHorizontalOffset = (stone: StoneType): string => {
+    if (stone.isStanding) {
+      return "-50%";
+    }
+    if (stone.isCapstone) {
+      return "25%";
+    }
+    return "0%";
+  };
+
+  const getTransform = (stone: StoneType, index: number): string => {
+    const translateY = `translateY(${getVerticalOffset(stone, index)})`;
+    const translateX = `translateX(${getHorizontalOffset(stone)})`;
+    const scale = isSelected(index) ? "scale(1.1)" : "";
+    return `${translateY} ${translateX} ${scale}`;
   };
 
   return (
@@ -49,41 +72,41 @@ export const StoneStack: React.FC<StoneStackProps> = ({
           {pieces.length}
         </div>
       )}
-
-      {pieces.map((stone, index) => (
-        <div
-          key={index}
-          className={`
+      {pieces.map((stone, index) => {
+        const transform = getTransform(stone, index);
+        return (
+          <div
+            key={index}
+            className={`
             absolute 
             ${stone.isStanding ? "left-1/2 -translate-x-1/2" : ""} 
             ${isInteractive ? "cursor-pointer" : ""}
             transition-all duration-200
             ${isSelected(index) ? "scale-110 brightness-110" : ""}
           `}
-          onClick={(e) => {
-            e.stopPropagation();
-            onPieceClick?.(index);
-          }}
-          style={{
-            transform: `translateY(${getVerticalOffset(index)}px) ${
-              stone.isStanding ? "translateX(-50%)" : ""
-            } ${isSelected(index) ? "scale(1.1)" : ""}`,
-            zIndex: index,
-          }}
-        >
-          <Stone
-            color={stone.color}
-            isCapstone={stone.isCapstone}
-            isStanding={stone.isStanding}
-            size="md"
-            className={`
+            onClick={(e) => {
+              e.stopPropagation();
+              onPieceClick?.(index);
+            }}
+            style={{
+              transform,
+              zIndex: index,
+            }}
+          >
+            <Stone
+              color={stone.color}
+              isCapstone={stone.isCapstone}
+              isStanding={stone.isStanding}
+              size="md"
+              className={`
               hover:z-20 
               transition-all duration-200
               ${isSelected(index) ? "ring-2 ring-blue-400 ring-offset-1" : ""}
             `}
-          />
-        </div>
-      ))}
+            />
+          </div>
+        );
+      })}
     </div>
   );
 };

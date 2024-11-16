@@ -2,8 +2,9 @@
 import React, { useState } from "react";
 import { Cell, MovingStack, Position } from "../types/game";
 import { StoneStack } from "./StoneStack";
-import { Stone } from "./Stone";
+import Stone from "./Stone";
 import { useGame } from "../state/gameContext";
+import { isValidDrop } from "../game/moveValidator";
 
 interface BoardCellProps {
   cell: Cell;
@@ -28,26 +29,41 @@ export const BoardCell: React.FC<BoardCellProps> = ({
     color: "white" | "black";
     isCapstone: boolean;
   } | null>(null);
+  const [isDraggedOver, setIsDraggedOver] = useState(false);
 
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault();
+    if (!isDraggedOver) {
+      try {
+        setIsDraggedOver(true);
+      } catch (err) {
+        console.error("Failed to parse drag data:", err);
+      }
+    }
   };
 
   const handleDragLeave = (e: React.DragEvent) => {
     if (!e.currentTarget.contains(e.relatedTarget as Node)) {
-      setShowPlacementOptions(false);
-      setDroppedStone(null);
+      setIsDraggedOver(false);
     }
   };
 
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault();
+    setIsDraggedOver(false);
     const data = e.dataTransfer.getData("text/plain");
     try {
       const stone = JSON.parse(data) as {
         color: "white" | "black";
         isCapstone: boolean;
       };
+
+      // Check if this is a valid drop target
+      if (
+        !isValidDrop(position, { ...stone, isStanding: false }, state.board)
+      ) {
+        return;
+      }
 
       if (stone.isCapstone) {
         addStone(position, { ...stone, isStanding: false });
@@ -62,10 +78,13 @@ export const BoardCell: React.FC<BoardCellProps> = ({
 
   const handlePlacementOption = (isStanding: boolean) => {
     if (droppedStone) {
-      addStone(position, {
-        ...droppedStone,
-        isStanding,
-      });
+      // Check if the standing placement would be valid
+      if (isValidDrop(position, { ...droppedStone, isStanding }, state.board)) {
+        addStone(position, {
+          ...droppedStone,
+          isStanding,
+        });
+      }
       setShowPlacementOptions(false);
       setDroppedStone(null);
     }
@@ -112,6 +131,15 @@ export const BoardCell: React.FC<BoardCellProps> = ({
     return currentPos.x === position.x && currentPos.y === position.y;
   };
 
+  const isValidDropTarget =
+    isDraggedOver && state.draggedStone
+      ? isValidDrop(
+          position,
+          { ...state.draggedStone, isStanding: false },
+          state.board
+        )
+      : false;
+
   return (
     <div
       onClick={handleCellClick}
@@ -132,6 +160,16 @@ export const BoardCell: React.FC<BoardCellProps> = ({
         ${isValidMove ? "ring-2 ring-green-500 ring-offset-0 ring-inset" : ""}
         ${isStartingCell ? "ring-2 ring-red-500 ring-offset-0 ring-inset" : ""}
         ${isInMovePath ? "bg-amber-200" : ""}
+        ${
+          isDraggedOver && isValidDropTarget
+            ? "ring-2 ring-green-500 ring-offset-0 ring-inset"
+            : ""
+        }
+        ${
+          isDraggedOver && !isValidDropTarget
+            ? "ring-2 ring-red-500 ring-offset-0 ring-inset"
+            : ""
+        }
       `}
     >
       {cell.pieces.length > 0 && (
