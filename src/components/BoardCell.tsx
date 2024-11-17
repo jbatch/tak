@@ -59,9 +59,7 @@ export const BoardCell: React.FC<BoardCellProps> = ({
       };
 
       // Check if this is a valid drop target
-      if (
-        !isValidDrop(position, { ...stone, isStanding: false }, state.board)
-      ) {
+      if (!isValidDrop(position, state.board)) {
         return;
       }
 
@@ -79,7 +77,7 @@ export const BoardCell: React.FC<BoardCellProps> = ({
   const handlePlacementOption = (isStanding: boolean) => {
     if (droppedStone) {
       // Check if the standing placement would be valid
-      if (isValidDrop(position, { ...droppedStone, isStanding }, state.board)) {
+      if (isValidDrop(position, state.board)) {
         addStone(position, {
           ...droppedStone,
           isStanding,
@@ -133,12 +131,13 @@ export const BoardCell: React.FC<BoardCellProps> = ({
 
   const isValidDropTarget =
     isDraggedOver && state.draggedStone
-      ? isValidDrop(
-          position,
-          { ...state.draggedStone, isStanding: false },
-          state.board
-        )
+      ? isValidDrop(position, state.board)
       : false;
+
+  const isFirstMove =
+    state.currentPlayer === "white"
+      ? !state.whiteFirstMoveDone
+      : !state.blackFirstMoveDone;
 
   return (
     <div
@@ -211,17 +210,22 @@ export const BoardCell: React.FC<BoardCellProps> = ({
             <span className="text-xs font-medium text-gray-600">Flat</span>
           </button>
 
-          <button
-            onClick={() => handlePlacementOption(true)}
-            className="flex flex-col items-center gap-1 p-2 hover:bg-gray-100 rounded transition-colors"
-          >
-            <Stone
-              color={droppedStone.color}
-              isCapstone={droppedStone.isCapstone}
-              isStanding={true}
-            />
-            <span className="text-xs font-medium text-gray-600">Standing</span>
-          </button>
+          {/* Only show standing option if it's not a first move */}
+          {!isFirstMove && (
+            <button
+              onClick={() => handlePlacementOption(true)}
+              className="flex flex-col items-center gap-1 p-2 hover:bg-gray-100 rounded transition-colors"
+            >
+              <Stone
+                color={droppedStone.color}
+                isCapstone={droppedStone.isCapstone}
+                isStanding={true}
+              />
+              <span className="text-xs font-medium text-gray-600">
+                Standing
+              </span>
+            </button>
+          )}
         </div>
       )}
     </div>

@@ -30,7 +30,7 @@ const GameContext = createContext<GameContextType | undefined>(undefined);
 export const GameProvider: React.FC<{ children: React.ReactNode }> = ({
   children,
 }) => {
-  const [state, dispatch] = useReducer(gameReducer, getInitialState(true));
+  const [state, dispatch] = useReducer(gameReducer, getInitialState(false));
 
   const addStone = (position: Position, stone: Stone) => {
     dispatch({ type: "ADD_STONE", position, stone });

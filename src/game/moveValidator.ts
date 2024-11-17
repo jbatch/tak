@@ -1,24 +1,10 @@
 // src/game/moveValidator.ts
-import { GameState, Position, Cell, Stone } from "../types/game";
+import { GameState, Position, Cell } from "../types/game";
 
-export const isValidDrop = (
-  position: Position,
-  stone: Stone,
-  board: Cell[][]
-): boolean => {
+export const isValidDrop = (position: Position, board: Cell[][]): boolean => {
   const targetCell = board[position.y][position.x];
-
-  if (targetCell.pieces.length === 0) return true;
-
-  const targetPiece = targetCell.pieces[targetCell.pieces.length - 1];
-
-  // Can't stack on capstones
-  if (targetPiece.isCapstone) return false;
-
-  // Can't stack on standing stones unless we're a capstone
-  if (targetPiece.isStanding && !stone.isCapstone) return false;
-
-  return true;
+  // Only allow initial piece placement on empty squares
+  return targetCell.pieces.length === 0;
 };
 
 export const isValidMove = (
@@ -101,8 +87,7 @@ export const isValidMove = (
 
   return true;
 };
-
-// Utility functions that might be needed by multiple components
+// Utility functions remain unchanged
 export const getMoveDirection = (from: Position, to: Position) => {
   if (from.x === to.x) {
     if (to.y === from.y - 1) return "up";

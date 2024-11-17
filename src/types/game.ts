@@ -38,4 +38,6 @@ export interface GameState {
     color: "white" | "black";
     isCapstone: boolean;
   } | null;
+  whiteFirstMoveDone: boolean;
+  blackFirstMoveDone: boolean;
 }

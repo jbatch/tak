@@ -51,6 +51,8 @@ const getInitialState = (testing: boolean = false): GameState => {
     movingStack: null,
     winner: null,
     draggedStone: null,
+    whiteFirstMoveDone: false,
+    blackFirstMoveDone: false,
   };
   if (testing) {
     newState.board[1][0].pieces = [
@@ -94,58 +96,70 @@ export const gameReducer = (
     case "ADD_STONE": {
       const { position, stone } = action;
 
-      // Validate current player
-      if (stone.color !== state.currentPlayer) return state;
-
       // Can't place stones during a move
       if (state.movingStack) return state;
 
-      // Validate stone counts
-      if (stone.color === "white") {
-        if (stone.isCapstone && state.whiteCapstones <= 0) return state;
-        if (!stone.isCapstone && state.whiteStones <= 0) return state;
+      const isFirstMove =
+        state.currentPlayer === "white"
+          ? !state.whiteFirstMoveDone
+          : !state.blackFirstMoveDone;
+
+      if (isFirstMove) {
+        // Must place opponent's stone flat
+        if (
+          stone.color === state.currentPlayer ||
+          stone.isStanding ||
+          stone.isCapstone
+        ) {
+          return state;
+        }
       } else {
-        if (stone.isCapstone && state.blackCapstones <= 0) return state;
-        if (!stone.isCapstone && state.blackStones <= 0) return state;
+        // After first move, can only place your own stones
+        if (stone.color !== state.currentPlayer) return state;
       }
 
-      // Check if target cell is empty or prevent placement on capstones
       const targetCell = state.board[position.y][position.x];
-      if (targetCell.pieces.length > 0) {
-        const topPiece = targetCell.pieces[targetCell.pieces.length - 1];
-        if (topPiece.isCapstone) return state;
-        if (topPiece.isStanding && !stone.isCapstone) return state;
+      if (targetCell.pieces.length > 0) return state;
+
+      // Validate stone counts - note we don't check counts for first move
+      // since that piece is "extra" and doesn't come from the normal stone pool
+      if (!isFirstMove) {
+        if (stone.color === "white") {
+          if (stone.isCapstone && state.whiteCapstones <= 0) return state;
+          if (!stone.isCapstone && state.whiteStones <= 0) return state;
+        } else {
+          if (stone.isCapstone && state.blackCapstones <= 0) return state;
+          if (!stone.isCapstone && state.blackStones <= 0) return state;
+        }
       }
 
       const newBoard = cloneBoard(state.board);
-      // Handle standing pieces
-      if (newBoard[position.y][position.x].pieces.length > 0) {
-        const topPiece = targetCell.pieces[targetCell.pieces.length - 1];
-        if (topPiece.isStanding && stone.isCapstone) {
-          topPiece.isStanding = false;
-        }
-      }
       newBoard[position.y][position.x].pieces.push(stone);
 
       const newState: GameState = {
         ...state,
         board: newBoard,
+        // Only decrement stone counts after first move
         whiteCapstones:
-          stone.color === "white" && stone.isCapstone
+          !isFirstMove && stone.color === "white" && stone.isCapstone
             ? state.whiteCapstones - 1
             : state.whiteCapstones,
         whiteStones:
-          stone.color === "white" && !stone.isCapstone
+          !isFirstMove && stone.color === "white" && !stone.isCapstone
             ? state.whiteStones - 1
             : state.whiteStones,
         blackCapstones:
-          stone.color === "black" && stone.isCapstone
+          !isFirstMove && stone.color === "black" && stone.isCapstone
             ? state.blackCapstones - 1
             : state.blackCapstones,
         blackStones:
-          stone.color === "black" && !stone.isCapstone
+          !isFirstMove && stone.color === "black" && !stone.isCapstone
             ? state.blackStones - 1
             : state.blackStones,
+        whiteFirstMoveDone:
+          state.currentPlayer === "white" ? true : state.whiteFirstMoveDone,
+        blackFirstMoveDone:
+          state.currentPlayer === "black" ? true : state.blackFirstMoveDone,
         currentPlayer: state.currentPlayer === "white" ? "black" : "white",
       };
       return checkAndUpdateWinner(newState);

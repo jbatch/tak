@@ -11,6 +11,11 @@ interface ConnectedGroup {
   rightEdge: boolean;
 }
 
+interface TerritoryCount {
+  white: number;
+  black: number;
+}
+
 const serializePosition = (x: number, y: number): string => `${x},${y}`;
 
 const isRoadPiece = (stone: Stone): boolean => {
@@ -85,13 +90,47 @@ const findConnectedGroup = (
   return group;
 };
 
+const countTerritory = (board: Cell[][]): TerritoryCount => {
+  const count: TerritoryCount = { white: 0, black: 0 };
+
+  for (let y = 0; y < board.length; y++) {
+    for (let x = 0; x < board.length; x++) {
+      const cell = board[y][x];
+      if (cell.pieces.length > 0) {
+        const topPiece = cell.pieces[cell.pieces.length - 1];
+        if (!topPiece.isStanding) {
+          // Only count flat stones and capstones
+          if (topPiece.color === "white") {
+            count.white++;
+          } else {
+            count.black++;
+          }
+        }
+      }
+    }
+  }
+
+  return count;
+};
+
 export const checkWinCondition = (
   board: Cell[][]
 ): PlayerColor | "draw" | null => {
+  // First check for road wins (existing logic)
+  const roadWinner = checkRoadWin(board);
+  if (roadWinner) return roadWinner;
+
+  // Check for flat win (board is full)
+  const flatWin = checkFlatWin(board);
+  if (flatWin) return flatWin;
+
+  return null;
+};
+
+const checkRoadWin = (board: Cell[][]): PlayerColor | null => {
   const boardSize = board.length;
   const visited: Set<string> = new Set();
 
-  // Check for road wins
   for (const color of ["white", "black"] as PlayerColor[]) {
     for (let y = 0; y < boardSize; y++) {
       for (let x = 0; x < boardSize; x++) {
@@ -108,7 +147,6 @@ export const checkWinCondition = (
 
         const group = findConnectedGroup(board, x, y, color, visited);
 
-        // Check for vertical or horizontal connection
         if (
           (group.topEdge && group.bottomEdge) ||
           (group.leftEdge && group.rightEdge)
@@ -119,7 +157,11 @@ export const checkWinCondition = (
     }
   }
 
-  // Check for draw (board is full)
+  return null;
+};
+
+const checkFlatWin = (board: Cell[][]): PlayerColor | "draw" | null => {
+  const boardSize = board.length;
   let isBoardFull = true;
   for (let y = 0; y < boardSize; y++) {
     for (let x = 0; x < boardSize; x++) {
@@ -131,5 +173,11 @@ export const checkWinCondition = (
     if (!isBoardFull) break;
   }
 
-  return isBoardFull ? "draw" : null;
+  if (isBoardFull) {
+    const territory = countTerritory(board);
+    if (territory.white > territory.black) return "white";
+    if (territory.black > territory.white) return "black";
+    return "draw";
+  }
+  return null;
 };
