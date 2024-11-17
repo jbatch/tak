@@ -1,5 +1,6 @@
 import { Stone as StoneType } from "@/types/game";
 import { Stone } from "./Stone";
+import { useDeviceType } from "@/hooks/useDevoceType";
 
 interface StoneStackProps {
   pieces: StoneType[];
@@ -18,6 +19,12 @@ export const StoneStack: React.FC<StoneStackProps> = ({
   isMoving,
   isFloating,
 }) => {
+  const { isDesktop } = useDeviceType();
+
+  console.log({ isDesktop });
+
+  const stoneSize = isDesktop ? "md" : "sm";
+
   const isSelected = (index: number): boolean => {
     return (
       selectedIndex !== null &&
@@ -83,7 +90,7 @@ export const StoneStack: React.FC<StoneStackProps> = ({
               color={stone.color}
               isCapstone={stone.isCapstone}
               isStanding={stone.isStanding}
-              size="md"
+              size={stoneSize}
               className={`
                 hover:z-20 
                 transition-all duration-200
