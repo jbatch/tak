@@ -22,12 +22,15 @@ export const DraggablePiece: React.FC<DraggablePieceProps> = ({
       : !state.blackFirstMoveDone;
 
   const handleDragStart = (e: React.DragEvent) => {
-    if (isDisabled) {
+    // Prevent drag if:
+    // 1. Component is disabled OR
+    // 2. It's first move and trying to place own color
+    if (isDisabled || (isFirstMove && color === state.currentPlayer)) {
+      console.log("YEL");
       e.preventDefault();
       return;
     }
 
-    // If it's first move, force the stone to be flat
     const data = {
       color,
       isCapstone,
@@ -53,7 +56,7 @@ export const DraggablePiece: React.FC<DraggablePieceProps> = ({
 
   return (
     <div
-      draggable={!isDisabled}
+      draggable={!isDisabled && !(isFirstMove && color === state.currentPlayer)}
       onDragStart={handleDragStart}
       onDragEnd={handleDragEnd}
       className={`
