@@ -26,6 +26,21 @@ export const PieceBank: React.FC<PieceBankProps> = ({
 
   const showFirstMovePiece = needsFirstMove && isCurrentPlayer;
 
+  const FirstMovePiece = () => (
+    <div className="border-b-2 border-blue-300 pb-4 mb-2">
+      <div className="text-sm text-center mb-2 font-medium text-blue-600">
+        Place your opponent's stone flat to start
+      </div>
+      <div className="flex justify-center">
+        <DraggablePiece
+          color={color === "white" ? "black" : "white"}
+          isCapstone={false}
+          isDisabled={!isCurrentPlayer}
+        />
+      </div>
+    </div>
+  );
+
   return (
     <div
       className={`
@@ -47,20 +62,7 @@ export const PieceBank: React.FC<PieceBankProps> = ({
         {color === "white" ? "White" : "Black"} Pieces
       </h3>
 
-      {showFirstMovePiece && (
-        <div className="border-b-2 border-blue-300 pb-4 mb-2">
-          <div className="text-sm text-center mb-2 font-medium text-blue-600">
-            Place your opponent's stone flat to start
-          </div>
-          <div className="flex justify-center">
-            <DraggablePiece
-              color={color === "white" ? "black" : "white"}
-              isCapstone={false}
-              isDisabled={!isCurrentPlayer}
-            />
-          </div>
-        </div>
-      )}
+      {showFirstMovePiece && <FirstMovePiece />}
 
       <div className="flex flex-wrap gap-2 justify-center">
         {Array.from({ length: stones }).map((_, i) => (
