@@ -1,6 +1,6 @@
 // src/components/BoardCell.tsx
 import React, { useState } from "react";
-import { Cell, MovingStack, Position, Stone as StoneType } from "../types/game";
+import { Cell, MovingStack, Position } from "../types/game";
 import { StoneStack } from "./StoneStack";
 import Stone from "./Stone";
 import { useGame } from "../state/gameContext";
@@ -105,7 +105,6 @@ export const BoardCell: React.FC<BoardCellProps> = ({
     e.stopPropagation();
 
     const piecesToMove = cell.pieces.length - stackIndex;
-
     // Can't move more pieces than the board size
     if (piecesToMove > state.board.length) {
       return;
@@ -147,65 +146,6 @@ export const BoardCell: React.FC<BoardCellProps> = ({
       ? !state.whiteFirstMoveDone
       : !state.blackFirstMoveDone;
 
-  const PlacedStones = () => (
-    <div className="relative group">
-      <StoneStack
-        pieces={cell.pieces}
-        onPieceClick={(index) =>
-          handleStackClick(index, event as unknown as React.MouseEvent)
-        }
-        isInteractive={cell.pieces.length > 0}
-        selectedIndex={isSelected ? state.selectedStackIndex : undefined}
-        isMoving={isSelected && state.movingStack !== null}
-      />
-    </div>
-  );
-
-  const MovingStones = ({ pieces }: { pieces: StoneType[] }) =>
-    isCurrentStackPosition(position, state.movingStack) && (
-      <div className="absolute -top-4 left-1/2 -translate-x-1/2">
-        <StoneStack pieces={pieces} isFloating={true} isInteractive={false} />
-      </div>
-    );
-
-  const PlacementOptions = ({
-    piece,
-  }: {
-    piece: {
-      color: "white" | "black";
-      isCapstone: boolean;
-    };
-  }) => (
-    <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-white rounded-lg shadow-xl p-2 flex gap-4 z-50">
-      <button
-        onClick={() => handlePlacementOption(false)}
-        className="flex flex-col items-center gap-1 p-2 hover:bg-gray-100 rounded transition-colors"
-      >
-        <Stone
-          color={piece.color}
-          isCapstone={piece.isCapstone}
-          isStanding={false}
-        />
-        <span className="text-xs font-medium text-gray-600">Flat</span>
-      </button>
-
-      {/* Only show standing option if it's not a first move */}
-      {!isFirstMove && (
-        <button
-          onClick={() => handlePlacementOption(true)}
-          className="flex flex-col items-center gap-1 p-2 hover:bg-gray-100 rounded transition-colors"
-        >
-          <Stone
-            color={piece.color}
-            isCapstone={piece.isCapstone}
-            isStanding={true}
-          />
-          <span className="text-xs font-medium text-gray-600">Standing</span>
-        </button>
-      )}
-    </div>
-  );
-
   return (
     <div
       onClick={handleCellClick}
@@ -238,13 +178,62 @@ export const BoardCell: React.FC<BoardCellProps> = ({
         }
       `}
     >
-      {cell.pieces.length > 0 && <PlacedStones />}
-      {state.movingStack && (
-        <MovingStones pieces={state.movingStack.heldPieces} />
+      {cell.pieces.length > 0 && (
+        <div className="relative group">
+          <StoneStack
+            pieces={cell.pieces}
+            onPieceClick={(index) =>
+              handleStackClick(index, event as unknown as React.MouseEvent)
+            }
+            isInteractive={cell.pieces.length > 0}
+            selectedIndex={isSelected ? state.selectedStackIndex : undefined}
+            isMoving={isSelected && state.movingStack !== null}
+          />
+        </div>
       )}
 
+      {state.movingStack &&
+        isCurrentStackPosition(position, state.movingStack) && (
+          <div className="absolute -top-4 left-1/2 -translate-x-1/2">
+            <StoneStack
+              pieces={state.movingStack.heldPieces}
+              isFloating={true}
+              isInteractive={false}
+            />
+          </div>
+        )}
+
       {showPlacementOptions && droppedStone && !state.movingStack && (
-        <PlacementOptions piece={droppedStone} />
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-white rounded-lg shadow-xl p-2 flex gap-4 z-50">
+          <button
+            onClick={() => handlePlacementOption(false)}
+            className="flex flex-col items-center gap-1 p-2 hover:bg-gray-100 rounded transition-colors"
+          >
+            <Stone
+              color={droppedStone.color}
+              isCapstone={droppedStone.isCapstone}
+              isStanding={false}
+            />
+            <span className="text-xs font-medium text-gray-600">Flat</span>
+          </button>
+
+          {/* Only show standing option if it's not a first move */}
+          {!isFirstMove && (
+            <button
+              onClick={() => handlePlacementOption(true)}
+              className="flex flex-col items-center gap-1 p-2 hover:bg-gray-100 rounded transition-colors"
+            >
+              <Stone
+                color={droppedStone.color}
+                isCapstone={droppedStone.isCapstone}
+                isStanding={true}
+              />
+              <span className="text-xs font-medium text-gray-600">
+                Standing
+              </span>
+            </button>
+          )}
+        </div>
       )}
     </div>
   );
