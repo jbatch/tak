@@ -15,7 +15,7 @@ function App() {
 
         {/* Main game area */}
         <main className="h-[85vh] flex items-center justify-center p-4">
-          <div className="w-full h-full max-w-[1400px] bg-white/80 backdrop-blur rounded-xl shadow-2xl p-6 flex items-center justify-center">
+          <div className="w-full h-full max-w-[1000px] bg-white/80 backdrop-blur rounded-xl shadow-2xl p-6 flex items-center justify-center">
             <GameBoard />
           </div>
         </main>

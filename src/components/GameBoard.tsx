@@ -21,7 +21,7 @@ export const GameBoard = () => {
 
   return (
     <div className="w-full h-full flex items-center justify-center">
-      <div className="w-full max-w-[1400px] p-4">
+      <div className="w-full max-w-[1400px] p-4 flex flex-col">
         {/* Alert */}
         {state.winner && (
           <Alert className="w-full max-w-md mx-auto mb-4">
@@ -132,7 +132,7 @@ export const GameBoard = () => {
         </div>
 
         {/* Mobile Banks */}
-        <div className="lg:hidden flex justify-between gap-4 mt-4">
+        <div className="lg:hidden flex justify-between gap-4 mt-4 w-full">
           <CompactPieceBank
             color="white"
             stones={state.whiteStones}
