@@ -1,7 +1,11 @@
 // src/game/winConditions.ts
-import { Cell, Stone } from "../types/game";
-
-type PlayerColor = "white" | "black";
+import {
+  Cell,
+  PlayerColor,
+  Stone,
+  TerritoryCount,
+  WinState,
+} from "../types/game";
 
 interface ConnectedGroup {
   cells: Set<string>;
@@ -9,11 +13,6 @@ interface ConnectedGroup {
   bottomEdge: boolean;
   leftEdge: boolean;
   rightEdge: boolean;
-}
-
-interface TerritoryCount {
-  white: number;
-  black: number;
 }
 
 const serializePosition = (x: number, y: number): string => `${x},${y}`;
@@ -97,8 +96,8 @@ const countTerritory = (board: Cell[][]): TerritoryCount => {
     for (let x = 0; x < board.length; x++) {
       const cell = board[y][x];
       if (cell.pieces.length > 0) {
-        const topPiece = cell.pieces[cell.pieces.length - 1];
-        if (!topPiece.isStanding) {
+        const topPiece = getTopPiece(cell);
+        if (topPiece && isRoadPiece(topPiece)) {
           // Only count flat stones and capstones
           if (topPiece.color === "white") {
             count.white++;
@@ -113,16 +112,62 @@ const countTerritory = (board: Cell[][]): TerritoryCount => {
   return count;
 };
 
-export const checkWinCondition = (
-  board: Cell[][]
-): PlayerColor | "draw" | null => {
-  // First check for road wins (existing logic)
-  const roadWinner = checkRoadWin(board);
-  if (roadWinner) return roadWinner;
+const shouldCheckFlatWin = (
+  board: Cell[][],
+  whiteStones: number,
+  blackStones: number,
+  whiteCapstones: number,
+  blackCapstones: number
+): boolean => {
+  // Check if board is full
+  const isBoardFull = board.every((row) =>
+    row.every((cell) => cell.pieces.length > 0)
+  );
 
-  // Check for flat win (board is full)
-  const flatWin = checkFlatWin(board);
-  if (flatWin) return flatWin;
+  // Check if either player has no pieces left
+  const whiteNoMorePieces = whiteStones === 0 && whiteCapstones === 0;
+  const blackNoMorePieces = blackStones === 0 && blackCapstones === 0;
+
+  return isBoardFull || whiteNoMorePieces || blackNoMorePieces;
+};
+
+export const checkWinCondition = (
+  board: Cell[][],
+  whiteStones: number = 0,
+  blackStones: number = 0,
+  whiteCapstones: number = 0,
+  blackCapstones: number = 0
+): WinState | null => {
+  // First check for road wins
+  const roadWinner = checkRoadWin(board);
+  if (roadWinner) {
+    const territory = countTerritory(board);
+    return {
+      player: roadWinner,
+      condition: "road",
+      territory,
+    };
+  }
+
+  // Check if we should evaluate flat win conditions
+  if (
+    shouldCheckFlatWin(
+      board,
+      whiteStones,
+      blackStones,
+      whiteCapstones,
+      blackCapstones
+    )
+  ) {
+    const territory = countTerritory(board);
+    const player =
+      territory.white > territory.black
+        ? "white"
+        : territory.black > territory.white
+        ? "black"
+        : "draw";
+    return { player, condition: "flat", territory };
+  }
 
   return null;
 };
@@ -157,27 +202,5 @@ const checkRoadWin = (board: Cell[][]): PlayerColor | null => {
     }
   }
 
-  return null;
-};
-
-const checkFlatWin = (board: Cell[][]): PlayerColor | "draw" | null => {
-  const boardSize = board.length;
-  let isBoardFull = true;
-  for (let y = 0; y < boardSize; y++) {
-    for (let x = 0; x < boardSize; x++) {
-      if (board[y][x].pieces.length === 0) {
-        isBoardFull = false;
-        break;
-      }
-    }
-    if (!isBoardFull) break;
-  }
-
-  if (isBoardFull) {
-    const territory = countTerritory(board);
-    if (territory.white > territory.black) return "white";
-    if (territory.black > territory.white) return "black";
-    return "draw";
-  }
   return null;
 };

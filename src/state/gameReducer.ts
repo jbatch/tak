@@ -55,15 +55,23 @@ const getInitialState = (testing: boolean = false): GameState => {
     blackFirstMoveDone: false,
   };
   if (testing) {
-    newState.board[1][0].pieces = [
+    newState.board[0][1].pieces = [
       { color: "white", isStanding: false, isCapstone: false },
+    ];
+    newState.board[2][1].pieces = [
       { color: "white", isStanding: false, isCapstone: false },
+    ];
+    newState.board[3][1].pieces = [
+      { color: "white", isStanding: false, isCapstone: false },
+    ];
+    newState.board[4][1].pieces = [
       { color: "white", isStanding: false, isCapstone: false },
     ];
 
     newState.board[1][4].pieces = [
       { color: "black", isStanding: false, isCapstone: false },
       { color: "black", isStanding: false, isCapstone: false },
+      { color: "white", isStanding: false, isCapstone: false },
       { color: "black", isStanding: false, isCapstone: false },
     ];
   }
@@ -71,7 +79,13 @@ const getInitialState = (testing: boolean = false): GameState => {
 };
 
 const checkAndUpdateWinner = (state: GameState): GameState => {
-  const winner = checkWinCondition(state.board);
+  const winner = checkWinCondition(
+    state.board,
+    state.whiteStones,
+    state.blackStones,
+    state.whiteCapstones,
+    state.blackCapstones
+  );
   if (winner) {
     return {
       ...state,

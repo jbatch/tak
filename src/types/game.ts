@@ -3,7 +3,20 @@ export interface Position {
   x: number;
   y: number;
 }
+export interface TerritoryCount {
+  white: number;
+  black: number;
+}
+
 export type Direction = "up" | "down" | "left" | "right";
+export type PlayerColor = "white" | "black";
+export type WinCondition = "road" | "flat";
+
+export interface WinState {
+  player: PlayerColor | "draw";
+  condition: WinCondition;
+  territory: TerritoryCount;
+}
 
 export interface MovingStack {
   pieces: Stone[];
@@ -33,7 +46,7 @@ export interface GameState {
   whiteStones: number;
   blackStones: number;
   movingStack: MovingStack | null;
-  winner: "white" | "black" | "draw" | null;
+  winner: WinState | null;
   draggedStone: {
     color: "white" | "black";
     isCapstone: boolean;
