@@ -135,16 +135,12 @@ export const gameReducer = (
       const targetCell = state.board[position.y][position.x];
       if (targetCell.pieces.length > 0) return state;
 
-      // Validate stone counts - note we don't check counts for first move
-      // since that piece is "extra" and doesn't come from the normal stone pool
-      if (!isFirstMove) {
-        if (stone.color === "white") {
-          if (stone.isCapstone && state.whiteCapstones <= 0) return state;
-          if (!stone.isCapstone && state.whiteStones <= 0) return state;
-        } else {
-          if (stone.isCapstone && state.blackCapstones <= 0) return state;
-          if (!stone.isCapstone && state.blackStones <= 0) return state;
-        }
+      if (stone.color === "white") {
+        if (stone.isCapstone && state.whiteCapstones <= 0) return state;
+        if (!stone.isCapstone && state.whiteStones <= 0) return state;
+      } else {
+        if (stone.isCapstone && state.blackCapstones <= 0) return state;
+        if (!stone.isCapstone && state.blackStones <= 0) return state;
       }
 
       const newBoard = cloneBoard(state.board);
@@ -155,19 +151,19 @@ export const gameReducer = (
         board: newBoard,
         // Only decrement stone counts after first move
         whiteCapstones:
-          !isFirstMove && stone.color === "white" && stone.isCapstone
+          stone.color === "white" && stone.isCapstone
             ? state.whiteCapstones - 1
             : state.whiteCapstones,
         whiteStones:
-          !isFirstMove && stone.color === "white" && !stone.isCapstone
+          stone.color === "white" && !stone.isCapstone
             ? state.whiteStones - 1
             : state.whiteStones,
         blackCapstones:
-          !isFirstMove && stone.color === "black" && stone.isCapstone
+          stone.color === "black" && stone.isCapstone
             ? state.blackCapstones - 1
             : state.blackCapstones,
         blackStones:
-          !isFirstMove && stone.color === "black" && !stone.isCapstone
+          stone.color === "black" && !stone.isCapstone
             ? state.blackStones - 1
             : state.blackStones,
         whiteFirstMoveDone:
