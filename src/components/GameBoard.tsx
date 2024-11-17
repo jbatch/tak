@@ -52,7 +52,7 @@ export const GameBoard: React.FC = () => {
         </Alert>
       )}
 
-      <div className="flex items-center justify-center gap-8">
+      <div className="flex items-center justify-center gap-16">
         <PieceBank
           color="white"
           stones={state.whiteStones}
@@ -61,8 +61,8 @@ export const GameBoard: React.FC = () => {
           isDisabled={!!state.winner}
         />
 
-        <div className="relative">
-          <div className="absolute -top-8 left-0 right-0 flex justify-around px-10">
+        <div className="relative px-8">
+          <div className="absolute top-2 inset-x-0 -translate-y-full flex justify-around px-10">
             {["A", "B", "C", "D", "E"].map((letter) => (
               <div
                 key={letter}
@@ -73,7 +73,7 @@ export const GameBoard: React.FC = () => {
             ))}
           </div>
 
-          <div className="absolute -left-8 top-0 bottom-0 flex flex-col justify-around py-2">
+          <div className="absolute left-2 top-0 bottom-0 flex flex-col justify-around py-2">
             {[1, 2, 3, 4, 5].map((number) => (
               <div
                 key={number}
@@ -118,10 +118,6 @@ export const GameBoard: React.FC = () => {
           isCurrentPlayer={getCurrentPlayer() === "black"}
           isDisabled={!!state.winner}
         />
-      </div>
-
-      <div className="text-lg font-bold">
-        Current Player: {getCurrentPlayer() === "white" ? "White" : "Black"}
       </div>
     </div>
   );
