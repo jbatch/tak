@@ -25,7 +25,13 @@ type GameAction =
   | {
       type: "SET_DRAGGED_STONE";
       stone: { color: "white" | "black"; isCapstone: boolean } | null;
-    };
+    }
+  | {
+      type: "SELECT_BANK_PIECE";
+      piece: { color: "white" | "black"; isCapstone: boolean } | null;
+      placementMode: boolean;
+    }
+  | { type: "EXIT_PLACEMENT_MODE" };
 
 // Helper functions
 const createInitialBoard = (size: number): Cell[][] => {
@@ -53,6 +59,8 @@ const getInitialState = (testing: boolean = false): GameState => {
     draggedStone: null,
     whiteFirstMoveDone: false,
     blackFirstMoveDone: false,
+    selectedBankPiece: null,
+    placementMode: false,
   };
   if (testing) {
     newState.board[0][1].pieces = [
@@ -391,6 +399,22 @@ export const gameReducer = (
         ...state,
         draggedStone: action.stone,
       };
+
+    case "SELECT_BANK_PIECE": {
+      return {
+        ...state,
+        selectedBankPiece: action.piece,
+        placementMode: action.placementMode,
+      };
+    }
+
+    case "EXIT_PLACEMENT_MODE": {
+      return {
+        ...state,
+        selectedBankPiece: null,
+        placementMode: false,
+      };
+    }
 
     default:
       return state;

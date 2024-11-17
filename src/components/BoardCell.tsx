@@ -23,12 +23,15 @@ export const BoardCell: React.FC<BoardCellProps> = ({
   isInMovePath,
   isStartingCell,
 }) => {
-  const { state, addStone, selectStack, continueMove, cancelMove } = useGame();
+  const {
+    state,
+    addStone,
+    selectStack,
+    continueMove,
+    cancelMove,
+    exitPlacementMode,
+  } = useGame();
   const [showPlacementOptions, setShowPlacementOptions] = useState(false);
-  const [droppedStone, setDroppedStone] = useState<{
-    color: "white" | "black";
-    isCapstone: boolean;
-  } | null>(null);
   const [isDraggedOver, setIsDraggedOver] = useState(false);
 
   const handleDragOver = (e: React.DragEvent) => {
@@ -58,7 +61,6 @@ export const BoardCell: React.FC<BoardCellProps> = ({
         isCapstone: boolean;
       };
 
-      // Check if this is a valid drop target
       if (!isValidDrop(position, state.board)) {
         return;
       }
@@ -66,7 +68,6 @@ export const BoardCell: React.FC<BoardCellProps> = ({
       if (stone.isCapstone) {
         addStone(position, { ...stone, isStanding: false });
       } else {
-        setDroppedStone(stone);
         setShowPlacementOptions(true);
       }
     } catch (err) {
@@ -74,21 +75,35 @@ export const BoardCell: React.FC<BoardCellProps> = ({
     }
   };
 
-  const handlePlacementOption = (isStanding: boolean) => {
-    if (droppedStone) {
+  const handlePlacementOption = (isStanding: boolean, e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (state.selectedBankPiece) {
       // Check if the standing placement would be valid
       if (isValidDrop(position, state.board)) {
         addStone(position, {
-          ...droppedStone,
+          ...state.selectedBankPiece,
           isStanding,
         });
       }
       setShowPlacementOptions(false);
-      setDroppedStone(null);
+      exitPlacementMode();
     }
   };
 
   const handleCellClick = () => {
+    // If we're in placement mode, handle piece placement
+    if (state.placementMode && state.selectedBankPiece) {
+      if (!isValidDrop(position, state.board)) return;
+
+      if (state.selectedBankPiece.isCapstone) {
+        addStone(position, { ...state.selectedBankPiece, isStanding: false });
+        exitPlacementMode();
+      } else {
+        setShowPlacementOptions(true);
+      }
+      return;
+    }
+
     if (isStartingCell && state.movingStack) {
       cancelMove();
       return;
@@ -153,7 +168,8 @@ export const BoardCell: React.FC<BoardCellProps> = ({
       onDragLeave={handleDragLeave}
       onDrop={handleDrop}
       className={`
-        w-20 h-20 
+      aspect-square
+        w-full
         bg-amber-100 
         border-2 border-amber-800
         flex items-center justify-center
@@ -167,19 +183,21 @@ export const BoardCell: React.FC<BoardCellProps> = ({
         ${isStartingCell ? "ring-2 ring-red-500 ring-offset-0 ring-inset" : ""}
         ${isInMovePath ? "bg-amber-200" : ""}
         ${
-          isDraggedOver && isValidDropTarget
+          isDraggedOver && isValidDropTarget && !showPlacementOptions
             ? "ring-2 ring-green-500 ring-offset-0 ring-inset"
             : ""
         }
         ${
-          isDraggedOver && !isValidDropTarget
-            ? "ring-2 ring-red-500 ring-offset-0 ring-inset"
+          !state.draggedStone &&
+          state.placementMode &&
+          isValidDrop(position, state.board)
+            ? "ring-2 ring-green-500 ring-offset-0 ring-inset"
             : ""
         }
       `}
     >
-      {cell.pieces.length > 0 && (
-        <div className="relative group">
+      <div className="relative w-16 h-16 sm:w-20 sm:h-20 flex items-center justify-center">
+        {cell.pieces.length > 0 && (
           <StoneStack
             pieces={cell.pieces}
             onPieceClick={(index) =>
@@ -189,8 +207,8 @@ export const BoardCell: React.FC<BoardCellProps> = ({
             selectedIndex={isSelected ? state.selectedStackIndex : undefined}
             isMoving={isSelected && state.movingStack !== null}
           />
-        </div>
-      )}
+        )}
+      </div>
 
       {state.movingStack &&
         isCurrentStackPosition(position, state.movingStack) && (
@@ -203,38 +221,40 @@ export const BoardCell: React.FC<BoardCellProps> = ({
           </div>
         )}
 
-      {showPlacementOptions && droppedStone && !state.movingStack && (
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-white rounded-lg shadow-xl p-2 flex gap-4 z-50">
-          <button
-            onClick={() => handlePlacementOption(false)}
-            className="flex flex-col items-center gap-1 p-2 hover:bg-gray-100 rounded transition-colors"
-          >
-            <Stone
-              color={droppedStone.color}
-              isCapstone={droppedStone.isCapstone}
-              isStanding={false}
-            />
-            <span className="text-xs font-medium text-gray-600">Flat</span>
-          </button>
-
-          {/* Only show standing option if it's not a first move */}
-          {!isFirstMove && (
+      {showPlacementOptions &&
+        state.selectedBankPiece &&
+        !state.movingStack && (
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-white rounded-lg shadow-xl p-2 flex gap-4 z-50">
             <button
-              onClick={() => handlePlacementOption(true)}
+              onClick={(e) => handlePlacementOption(false, e)}
               className="flex flex-col items-center gap-1 p-2 hover:bg-gray-100 rounded transition-colors"
             >
               <Stone
-                color={droppedStone.color}
-                isCapstone={droppedStone.isCapstone}
-                isStanding={true}
+                color={state.selectedBankPiece.color}
+                isCapstone={state.selectedBankPiece.isCapstone}
+                isStanding={false}
               />
-              <span className="text-xs font-medium text-gray-600">
-                Standing
-              </span>
+              <span className="text-xs font-medium text-gray-600">Flat</span>
             </button>
-          )}
-        </div>
-      )}
+
+            {/* Only show standing option if it's not a first move */}
+            {!isFirstMove && (
+              <button
+                onClick={(e) => handlePlacementOption(true, e)}
+                className="flex flex-col items-center gap-1 p-2 hover:bg-gray-100 rounded transition-colors"
+              >
+                <Stone
+                  color={state.selectedBankPiece.color}
+                  isCapstone={state.selectedBankPiece.isCapstone}
+                  isStanding={true}
+                />
+                <span className="text-xs font-medium text-gray-600">
+                  Standing
+                </span>
+              </button>
+            )}
+          </div>
+        )}
     </div>
   );
 };

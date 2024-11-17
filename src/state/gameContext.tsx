@@ -23,6 +23,11 @@ type GameContextType = {
   isValidMove: (from: Position, to: Position) => boolean;
   getCurrentPlayer: () => "white" | "black";
   getSelectedStack: () => { position: Position; index: number } | null;
+  selectBankPiece: (
+    piece: { color: "white" | "black"; isCapstone: boolean } | null,
+    placementMode: boolean
+  ) => void;
+  exitPlacementMode: () => void;
 };
 
 const GameContext = createContext<GameContextType | undefined>(undefined);
@@ -75,6 +80,17 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({
     };
   };
 
+  const selectBankPiece = (
+    piece: { color: "white" | "black"; isCapstone: boolean } | null,
+    placementMode: boolean = false
+  ) => {
+    dispatch({ type: "SELECT_BANK_PIECE", piece, placementMode });
+  };
+
+  const exitPlacementMode = () => {
+    dispatch({ type: "EXIT_PLACEMENT_MODE" });
+  };
+
   const value = {
     state,
     addStone,
@@ -87,6 +103,8 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({
     isValidMove: (from: Position, to: Position) => isValidMove(from, to, state),
     getCurrentPlayer,
     getSelectedStack,
+    selectBankPiece,
+    exitPlacementMode,
   };
 
   return <GameContext.Provider value={value}>{children}</GameContext.Provider>;

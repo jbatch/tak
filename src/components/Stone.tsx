@@ -5,7 +5,7 @@ interface StoneProps {
   isCapstone: boolean;
   isStanding: boolean;
   className?: string;
-  size?: "sm" | "md" | "lg";
+  size?: "xs" | "sm" | "md" | "lg";
 }
 
 export const Stone: React.FC<StoneProps> = ({
@@ -15,16 +15,18 @@ export const Stone: React.FC<StoneProps> = ({
   className = "",
   size = "sm",
 }) => {
-  // Base dimensions for flat pieces
+  // Base dimensions for flat pieces - now including xs size
   const sizeClasses = {
-    sm: isCapstone ? "w-6 h-10" : "w-8 h-8",
+    xs: isCapstone ? "w-4 h-8" : "w-6 h-6", // New mobile board size
+    sm: isCapstone ? "w-6 h-10" : "w-8 h-8", // Original size for banks/menus
     md: isCapstone ? "w-8 h-14" : "w-12 h-12",
     lg: isCapstone ? "w-10 h-18" : "w-16 h-16",
   };
 
-  // Standing pieces are thinner and taller
+  // Standing pieces are thinner and taller - including xs size
   const standingSizeClasses = {
-    sm: "w-2 h-8",
+    xs: "w-1.5 h-6", // New mobile board size
+    sm: "w-2 h-8", // Original size for banks/menus
     md: "w-3 h-12",
     lg: "w-4 h-16",
   };

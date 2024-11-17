@@ -51,4 +51,9 @@ export interface GameState {
   } | null;
   whiteFirstMoveDone: boolean;
   blackFirstMoveDone: boolean;
+  selectedBankPiece: {
+    color: "white" | "black";
+    isCapstone: boolean;
+  } | null;
+  placementMode: boolean;
 }
